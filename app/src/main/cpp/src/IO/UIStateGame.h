@@ -84,6 +84,8 @@ public:
 
     UIElement *get_front(Point<int16_t> pos) override;
 
+    bool blocks_mobile_input() const;
+
 private:
     const CharStats &stats_;
 

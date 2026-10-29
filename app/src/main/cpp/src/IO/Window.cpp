@@ -28,6 +28,8 @@
 #include "Stage.h"
 
 #include <utility>
+#include <algorithm>
+#include <cmath>
 #include <android/log.h>
 
 namespace ms {
@@ -38,8 +40,8 @@ namespace ms {
             opc_step_(0.0f),
             ratio_x(0.0f),
             ratio_y(0.0f),
-            width_(Constants::Constants::get().get_viewwidth()),
-            height_(Constants::Constants::get().get_viewheight()) {
+            width_(Constants::Constants::Constants::get().get_viewwidth()),
+            height_(Constants::Constants::Constants::get().get_viewheight()) {
     }
 
     Window::~Window() {
@@ -93,8 +95,17 @@ namespace ms {
 
     bool mousekey_callback(GLFMDisplay *display, int touch, GLFMTouchPhase phase,
                            double x, double y) {
-        Point<double_t> relative_pos = Point<double_t>(x / Window::get().get_ratio_x(),
-                                                       y / Window::get().get_ratio_y());
+        auto &window = Window::get();
+        if (phase == GLFMTouchPhaseCancelled ||
+            (!window.contains_touch(x, y) && phase != GLFMTouchPhaseEnded)) {
+            if (phase != GLFMTouchPhaseHover) {
+                UI::get().send_cursor(false);
+                UI::get().release_keys();
+                sent = false;
+            }
+            return true;
+        }
+        Point<double_t> relative_pos(window.logical_x(x), window.logical_y(y));
         UI::get().set_touch_phase(touch, TouchInfo(relative_pos, phase));
         if (UI::get().should_send_cursor()) {
             Window::get().move_cursor(x, y);
@@ -102,6 +113,7 @@ namespace ms {
                 case GLFMTouchPhaseHover:
                     break;
                 case GLFMTouchPhaseBegan: {
+                    sent = false;
                     click_start_time = std::chrono::steady_clock::now();
                     UI::get().send_cursor(false);
                     break;
@@ -110,8 +122,10 @@ namespace ms {
                     auto diff_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
                             std::chrono::steady_clock::now() - click_start_time).count();
                     if (diff_ms > 500) {
-                        if (!sent)
+                        if (!sent) {
                             UI::get().send_cursor(true);
+                            sent = true;
+                        }
                     } else {
                         UI::get().send_cursor(false);
                     }
@@ -141,8 +155,8 @@ namespace ms {
     }
 
     void Window::move_cursor(double x, double y) {
-        auto xpos = static_cast<int16_t>(x / Window::get().get_ratio_x());
-        auto ypos = static_cast<int16_t>(y / Window::get().get_ratio_y());
+        auto xpos = static_cast<int16_t>(logical_x(x));
+        auto ypos = static_cast<int16_t>(logical_y(y));
         Point<int16_t> pos = Point<int16_t>(xpos, ypos);
         UI::get().send_cursor(pos);
     }
@@ -160,9 +174,20 @@ namespace ms {
     }
 
     void onDraw(GLFMDisplay *display) {
+        static bool initialization_failed = false;
+        if (initialization_failed) {
+            return;
+        }
         if (ms::program_ == 0) {
             program_ = glCreateProgram();
-            GraphicsGL::get().init(display);
+            if (Error error = GraphicsGL::get().init(display)) {
+                const auto message = error.get_message();
+                const auto details = error.get_details();
+                __android_log_print(ANDROID_LOG_ERROR, "OpenMapleClient", "Graphics initialization failed: %.*s (%.*s)",
+                    static_cast<int>(message.size()), message.data(), static_cast<int>(details.size()), details.data());
+                initialization_failed = true;
+                return;
+            }
             GraphicsGL::get().reinit();
             Char::init();
             DamageNumber::init();
@@ -171,10 +196,8 @@ namespace ms {
             UI::get().init();
             Timer::get().start();
 
-            int width, height;
-            glfmGetDisplaySize(display, &width, &height);
-            Window::get().set_ratio(width / 1366.0, height / 768.0);
         }
+        Window::get().refresh_viewport();
         const int64_t timestep = Constants::TIMESTEP * 1000;
         int64_t accumulator = timestep;
         if (game.is_running()) {
@@ -193,7 +216,7 @@ namespace ms {
     Error Window::init(GLFMDisplay *pApp) {
         display = pApp;
         glfmSetDisplayConfig(display,
-                             GLFMRenderingAPIOpenGLES32,
+                             GLFMRenderingAPIOpenGLES3,
                              GLFMColorFormatRGBA8888,
                              GLFMDepthFormatNone,
                              GLFMStencilFormatNone,
@@ -203,8 +226,6 @@ namespace ms {
     }
 
     Error Window::init_window() {
-        glViewport(0, 0, width_, height_);
-
         glfmSetMouseCursor(display, GLFMMouseCursorDefault);
         glfmSetKeyFunc(display, key_callback);
         glfmSetCharFunc(display, char_callback);
@@ -214,6 +235,9 @@ namespace ms {
         glfmSetAppFocusFunc(display, focus_callback);
 //        glfwSetScrollCallback(pApp, scroll_callback);
         glfmSetSurfaceDestroyedFunc(display, close_callback);
+        glfmSetSurfaceResizedFunc(display, [](GLFMDisplay *, int, int) {
+            Window::get().refresh_viewport();
+        });
 
         return Error::Code::NONE;
     }
@@ -246,8 +270,8 @@ namespace ms {
     void Window::check_events() {
         int16_t max_width = Configuration::get().get_max_width();
         int16_t max_height = Configuration::get().get_max_height();
-        int16_t new_width = Constants::Constants::get().get_viewwidth();
-        int16_t new_height = Constants::Constants::get().get_viewheight();
+        int16_t new_width = Constants::Constants::Constants::get().get_viewwidth();
+        int16_t new_height = Constants::Constants::Constants::get().get_viewheight();
 
         if (width_ != new_width || height_ != new_height) {
             width_ = new_width;
@@ -303,6 +327,41 @@ namespace ms {
 
     double Window::get_ratio_x() {
         return ratio_x;
+    }
+
+    void Window::refresh_viewport() {
+        if (ms::program_ == 0) return;
+        int surface_width, surface_height;
+        glfmGetDisplaySize(display, &surface_width, &surface_height);
+        const int logical_width = Constants::Constants::get().get_viewwidth();
+        const int logical_height = Constants::Constants::get().get_viewheight();
+        if (surface_width <= 0 || surface_height <= 0 || logical_width <= 0 || logical_height <= 0) return;
+        const double scale = std::min(double(surface_width) / logical_width,
+                                      double(surface_height) / logical_height);
+        const int width = std::max(1, int(std::lround(logical_width * scale)));
+        const int height = std::max(1, int(std::lround(logical_height * scale)));
+        if (width == viewport_width_ && height == viewport_height_ &&
+            surface_width == surface_width_ && surface_height == surface_height_ &&
+            ratio_x == double(width) / logical_width && ratio_y == double(height) / logical_height) return;
+        surface_width_ = surface_width;
+        surface_height_ = surface_height;
+        viewport_width_ = width;
+        viewport_height_ = height;
+        viewport_x_ = (surface_width - width) / 2;
+        viewport_y_ = (surface_height - height) / 2;
+        set_ratio(double(width) / logical_width, double(height) / logical_height);
+        glViewport(viewport_x_, surface_height - viewport_y_ - height, width, height);
+        GraphicsGL::get().reinit();
+        UI::get().release_keys();
+        __android_log_print(ANDROID_LOG_INFO, "DisplayMode", "surface=%dx%d logical=%dx%d viewport=%d,%d %dx%d",
+            surface_width, surface_height, logical_width, logical_height, viewport_x_, viewport_y_, width, height);
+    }
+
+    double Window::logical_x(double x) const { return ratio_x > 0 ? (x - viewport_x_) / ratio_x : 0; }
+    double Window::logical_y(double y) const { return ratio_y > 0 ? (y - viewport_y_) / ratio_y : 0; }
+    bool Window::contains_touch(double x, double y) const {
+        return x >= viewport_x_ && y >= viewport_y_ &&
+               x < viewport_x_ + viewport_width_ && y < viewport_y_ + viewport_height_;
     }
 
     double Window::get_ratio_y() {

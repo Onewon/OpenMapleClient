@@ -28,10 +28,10 @@ namespace ms {
     }
 
     Error GraphicsGL::init(GLFMDisplay *pApp) {
-        // Set image to left top, multiplied by phone (screensize y / 384), screen resolution is 1366 * 768
+        // Project logical game coordinates into the viewport for the selected resolution.
         // Frag color changes to bgra because color is incorrect on Android platform
         const char *vertexShaderSource =
-                "#version 320 es\n"
+                "#version 300 es\n"
                 "precision highp float;"
                 "in vec4 coord;"
                 "in vec4 color;"
@@ -42,20 +42,20 @@ namespace ms {
 
                 "void main(void)"
                 "{"
-                "	float x = (-1.0 + coord.x * (screensize.y / 384.0) / screensize.x);"
-                "	float y = 1.0 - (coord.y + float(yoffset)) / 384.0;"
+                "	float x = -1.0 + coord.x * 2.0 / screensize.x;"
+                "	float y = 1.0 - (coord.y + float(yoffset)) * 2.0 / screensize.y;"
                 "   gl_Position = vec4(x, y, 0.0, 1.0);"
                 "	texpos = coord.zw;"
                 "	colormod = color;"
                 "}";
 
         const char *fragmentShaderSource =
-                "#version 320 es\n"
+                "#version 300 es\n"
                 "precision highp float;"
                 "in vec2 texpos;"
                 "in vec4 colormod;"
                 "out vec4 FragColor;"
-                "uniform sampler2D texture;"
+                "uniform sampler2D atlas_texture;"
                 "uniform vec2 atlassize;"
                 "uniform int fontregion;"
 
@@ -67,12 +67,12 @@ namespace ms {
                 "	}"
                 "	else if (texpos.y <= float(fontregion))"
                 "	{"
-                "		FragColor = vec4(1.0, 1.0, 1.0, texture(texture, texpos / "
+                "		FragColor = vec4(1.0, 1.0, 1.0, texture(atlas_texture, texpos / "
                 "atlassize).r) * colormod;"
                 "	}"
                 "	else"
                 "	{"
-                "		FragColor = texture(texture, texpos / atlassize).bgra * "
+                "		FragColor = texture(atlas_texture, texpos / atlassize).bgra * "
                 "colormod;"
                 "	}"
                 "}";
@@ -160,7 +160,7 @@ namespace ms {
 
         attribute_coord_ = glGetAttribLocation(shader_program_, "coord");
         attribute_color_ = glGetAttribLocation(shader_program_, "color");
-        uniform_texture_ = glGetUniformLocation(shader_program_, "texture");
+        uniform_texture_ = glGetUniformLocation(shader_program_, "atlas_texture");
         uniform_atlas_size_ = glGetUniformLocation(shader_program_, "atlassize");
         uniform_screen_size_ = glGetUniformLocation(shader_program_, "screensize");
         uniform_yoffset = glGetUniformLocation(shader_program_, "yoffset");
@@ -658,7 +658,7 @@ namespace ms {
                                           size_t prev,
                                           size_t first,
                                           size_t last) {
-        if (first == last) {
+        if (first >= last) {
             return prev;
         }
 
@@ -812,7 +812,7 @@ namespace ms {
             ay_(font_.linespace()),
             width_(0),
             endy_(0) {
-        if (max_width_ == 0) {
+        if (max_width_ <= 0) {
             max_width_ = 800;
         }
     }
@@ -1250,8 +1250,41 @@ namespace ms {
             return;
         }
 
-        circles_.emplace_back(x, y, radius,
-                              Color(red, green, blue, alpha));
+        if (radius <= 0 || alpha <= 0) return;
+        const Color color(red, green, blue, alpha);
+        // Keep circles in the same ordered batch as sprites and labels. Separate
+        // triangle fans used to join unrelated circles and cover later UI text.
+        constexpr int segments = 48;
+        for (int i = 0; i < segments; ++i) {
+            const double a = 2.0 * M_PI * i / segments;
+            const double b = 2.0 * M_PI * (i + 1) / segments;
+            Quad quad(x, x, y, y, null_offset_, color, 0);
+            quad.vertices[1].localcoord_x = x + std::lround(radius * std::cos(a));
+            quad.vertices[1].localcoord_y = y + std::lround(radius * std::sin(a));
+            quad.vertices[2].localcoord_x = x + std::lround(radius * std::cos(b));
+            quad.vertices[2].localcoord_y = y + std::lround(radius * std::sin(b));
+            quads_.push_back(quad);
+        }
+    }
+
+    void GraphicsGL::draw_ring(int16_t x, int16_t y, int16_t radius, int16_t thickness,
+                               float red, float green, float blue, float alpha) {
+        if (locked_ || radius <= 0 || thickness <= 0 || alpha <= 0) return;
+        const int inner = std::max(0, int(radius - thickness));
+        const Color color(red, green, blue, alpha);
+        constexpr int segments = 48;
+        for (int i = 0; i < segments; ++i) {
+            const double a = 2.0 * M_PI * i / segments;
+            const double b = 2.0 * M_PI * (i + 1) / segments;
+            Quad quad(x, x, y, y, null_offset_, color, 0);
+            const double angles[4] = {a, b, b, a};
+            const int radii[4] = {radius, radius, inner, inner};
+            for (int j = 0; j < 4; ++j) {
+                quad.vertices[j].localcoord_x = x + std::lround(radii[j] * std::cos(angles[j]));
+                quad.vertices[j].localcoord_y = y + std::lround(radii[j] * std::sin(angles[j]));
+            }
+            quads_.push_back(quad);
+        }
     }
 
     void GraphicsGL::draw_screen_fill(float red,
@@ -1286,7 +1319,7 @@ namespace ms {
             circles_.emplace_back(1, 1, 1, color);
         }
 
-        glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
         std::vector<Quad::Vertex> triangles;

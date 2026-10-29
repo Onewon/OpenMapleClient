@@ -1,3 +1,14 @@
 <resources>
     <string name="app_name">OpenMapleClient</string>
+    <string name="input_settings">Keyboard and touch controls</string>
+    <string name="keyboard_connected">Physical keyboard available</string>
+    <string name="keyboard_disconnected">No available physical keyboard</string>
+    <string name="controls_visibility">Virtual controls</string>
+    <string name="controls_auto">Automatic: hide while a physical keyboard is available</string>
+    <string name="controls_show">Always show</string>
+    <string name="controls_hide">Always hide</string>
+    <string name="keyboard_help">Supports tablet keyboard covers, USB and Bluetooth keyboards. Pair or attach in Android first. Existing game key bindings apply. Hidden controls do not intercept touches. Changes are saved automatically. In game: Settings &gt; Joypad.</string>
+    <string name="settings_done">Done</string>
+    <string name="controls_opacity">Button opacity: %1$d%%</string>
+    <string name="controls_opacity_help">Higher values make controls more visible. Applies to the joystick, buttons and skill icons. Assign skills to keys 0–6 in Keybinds.</string>
 </resources>

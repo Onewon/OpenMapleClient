@@ -90,6 +90,7 @@ MapleComboBox::MapleComboBox(Type type,
     current_rect_ =
         ColorBox(width() - 2, HEIGHT - 2, Color::Name::GRAYOLIVE, 1.0f);
 
+    position_ = pos;
     Point<int16_t> option_pos =
         Point<int16_t>(
             position_.x(),
@@ -112,7 +113,8 @@ MapleComboBox::MapleComboBox(Type type,
     pressed_ = false;
 }
 
-void MapleComboBox::draw(Point<int16_t>) const {
+void MapleComboBox::draw(Point<int16_t> parentpos) const {
+    parent_pos_ = parentpos;
     if (active_) {
         auto lpos = Point<int16_t>(position_ + parent_pos_);
 
@@ -155,7 +157,8 @@ void MapleComboBox::draw(Point<int16_t>) const {
     }
 }
 
-Rectangle<int16_t> MapleComboBox::bounds(Point<int16_t>) const {
+Rectangle<int16_t> MapleComboBox::bounds(Point<int16_t> parentpos) const {
+    parent_pos_ = parentpos;
     auto lt = parent_pos_ + position_ - origin();
     auto rb = lt + textures_[state_][0].get_dimensions();
 
@@ -183,8 +186,10 @@ Cursor::State MapleComboBox::send_cursor(bool clicked,
     option_text_[last_shown_].change_color(Color::Name::BLACK);
 
     for (auto &[btnid, button] : buttons_) {
+        button->set_position(parent_pos_ + position_ + Point<int16_t>(1,
+            textures_[state_][0].height() + btnid * HEIGHT + 1));
         if (button->is_active()
-            && button->bounds(position_).contains(cursorpos)) {
+            && button->bounds(Point<int16_t>(0, 0)).contains(cursorpos)) {
             if (button->get_state() == Button::State::NORMAL) {
                 Sound(Sound::Name::BUTTON_OVER).play();
 

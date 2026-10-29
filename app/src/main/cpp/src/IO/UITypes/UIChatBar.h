@@ -37,6 +37,8 @@ public:
 
     void update() override;
 
+    void update_screen(int16_t new_width, int16_t new_height) override;
+
     void send_key(int32_t keycode, bool pressed, bool escape) override;
 
     bool is_in_range(Point<int16_t> cursorpos) const override;
@@ -137,5 +139,6 @@ private:
     std::unordered_map<int16_t, Text> row_texts_;
 
     bool should_drag_chat_top_;
+    int16_t layout_height_ = 0;
 };
 }  // namespace ms

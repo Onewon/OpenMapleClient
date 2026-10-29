@@ -1,53 +1,43 @@
-//	This file is part of the continued Journey MMORPG client
-//	Copyright (C) 2015-2024  Daniel Allendorf, Ryan Payton, Bizhou Xing
-//
-//	This program is free software: you can redistribute it and/or modify
-//	it under the terms of the GNU Affero General Public License as published by
-//	the Free Software Foundation, either version 3 of the License, or
-//	(at your option) any later version.
-//
-//	This program is distributed in the hope that it will be useful,
-//	but WITHOUT ANY WARRANTY; without even the implied warranty of
-//	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//	GNU Affero General Public License for more details.
-//
-//	You should have received a copy of the GNU Affero General Public License
-//	along with this program.  If not, see <https://www.gnu.org/licenses/>.
+// This file is part of the continued Journey MMORPG client
+// Copyright (C) 2015-2024  Daniel Allendorf, Ryan Payton, Bizhou Xing
+// Distributed under the GNU Affero General Public License, version 3 or later.
 #pragma once
-#include "IconCover.h"
-#include "glfm.h"
+
 #include "TouchInfo.h"
+#include "../../Graphics/Text.h"
+#include "glfm.h"
+#include "Texture.h"
 
 namespace ms {
 class TouchButton {
 public:
-    enum ActionType : uint16_t {
-        Jump,
-        Skill,
-        Potion,
-        Default
-    };
+    enum ActionType : uint16_t { Jump, Attack, Pickup, Skill, Potion, Default };
 
-    TouchButton(Point<int16_t> position, ActionType action_type, const std::string &text);
-
-    TouchButton(Point<int16_t> position, ActionType action_type, GLFMKeyCode bind_key, const std::string &text);
+    TouchButton(Point<int16_t> center, int16_t radius, ActionType action_type,
+                const std::string &text);
+    TouchButton(Point<int16_t> center, int16_t radius, ActionType action_type,
+                GLFMKeyCode bind_key, const std::string &text);
 
     void draw() const;
-
+    void set_position(Point<int16_t> center) { position_ = center; }
+    void set_geometry(Point<int16_t> center, int16_t radius) { position_ = center; radius_ = radius; }
     void update();
-
-    void bind_touch_id(int16_t touch_id);
-
-    bool set_state(TouchInfo touchInfo);
-
-    int16_t get_bind_touch_id();
+    void reset();
+    void bind_touch_id(int16_t touch_id) { bind_touch_id_ = touch_id; }
+    bool set_state(TouchInfo touch_info) const;
+    int16_t get_bind_touch_id() const { return bind_touch_id_; }
 
 private:
+    void set_pressed(bool pressed);
     Point<int16_t> position_;
-    ColorBox background_;
+    int16_t radius_;
     GLFMKeyCode bind_key_;
     ActionType action_type_;
     Text text_;
-    int16_t bind_touch_id_;
+    int16_t bind_touch_id_ = -1;
+    bool pressed_ = false;
+    Texture bound_icon_;
+    int32_t icon_action_ = -1;
+    int icon_type_ = -1;
 };
 }  // namespace ms

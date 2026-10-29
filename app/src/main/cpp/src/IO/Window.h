@@ -56,6 +56,11 @@ namespace ms {
 
         void move_cursor(double x, double y);
 
+        void refresh_viewport();
+        double logical_x(double x) const;
+        double logical_y(double y) const;
+        bool contains_touch(double x, double y) const;
+
         void set_ratio(double ratio_x, double ratio_y);
 
         double get_ratio_x();
@@ -73,6 +78,12 @@ namespace ms {
         float opc_step_;
         double ratio_x;
         double ratio_y;
+        int viewport_x_ = 0;
+        int viewport_y_ = 0;
+        int viewport_width_ = 0;
+        int viewport_height_ = 0;
+        int surface_width_ = 0;
+        int surface_height_ = 0;
         std::function<void()> fade_procedure_;
         int16_t width_;
         int16_t height_;

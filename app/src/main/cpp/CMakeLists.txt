@@ -13,6 +13,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 add_library(OpenMapleClient SHARED
         gl.cpp
         src/Game.cpp
+        src/IO/AndroidInput.cpp
         src/Configuration.cpp
         src/Audio/Audio.cpp
         src/Character/ActiveBuffs.cpp

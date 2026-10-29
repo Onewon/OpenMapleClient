@@ -14,6 +14,9 @@
 //	You should have received a copy of the GNU Affero General Public License
 //	along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "UI.h"
+#include "AndroidInput.h"
+#include "../Constants.h"
+#include <android/log.h>
 
 #include <optional>
 #include <utility>
@@ -55,14 +58,25 @@ namespace ms {
         state_->draw(alpha, cursor_.get_position());
         scrolling_notice_.draw(alpha);
         cursor_.draw(alpha);
-        mobile_input_.draw();
+        if (mobile_input_active_) mobile_input_.draw();
     }
 
     void UI::update() {
+        const unsigned generation = AndroidInput::release_generation.load();
+        const bool visible = (AndroidInput::state.load() & 2) != 0;
+        if (generation != input_generation_ || visible != controls_visible_) {
+            release_keys();
+            input_generation_ = generation;
+            controls_visible_ = visible;
+            __android_log_print(ANDROID_LOG_INFO, "KeyboardInput", "keyboard=%d controls=%d; keys released", AndroidInput::has_keyboard(), controls_visible_);
+        }
         state_->update();
         scrolling_notice_.update();
         cursor_.update();
-        mobile_input_.update();
+        const bool mobile_active = mobile_controls_visible();
+        if (!mobile_active && mobile_input_active_) release_keys();
+        mobile_input_active_ = mobile_active;
+        if (mobile_active) mobile_input_.update();
     }
 
     void UI::enable() {
@@ -76,6 +90,8 @@ namespace ms {
     void UI::change_state(State id) {
         switch (id) {
             case State::LOGIN:
+                Constants::Constants::get().set_viewwidth(800);
+                Constants::Constants::get().set_viewheight(600);
                 state_ = std::make_unique<UIStateLogin>();
                 break;
             case State::GAME:
@@ -118,6 +134,7 @@ namespace ms {
             Music::set_bgmvolume(bgmvolume);
         } else {
             // The window lost input focus
+            release_keys();
             Sound::set_sfxvolume(0);
             Music::set_bgmvolume(0);
         }
@@ -150,7 +167,9 @@ namespace ms {
     }
 
     void UI::send_cursor(Point<int16_t> pos) {
-        send_cursor(pos, cursor_.get_state());
+        const auto state = cursor_.get_state();
+        // Moving the pointer must not replay a button activation. Dragging retains its own state.
+        send_cursor(pos, state == Cursor::State::CLICKING ? Cursor::State::IDLE : state);
     }
 
     void UI::rightclick() {
@@ -164,6 +183,63 @@ namespace ms {
     }
 
     void UI::send_key(int32_t keycode, bool pressed) {
+        const bool previous = physical_keys_[keycode];
+        physical_keys_[keycode] = pressed;
+        if (previous == pressed && !focused_text_field_) {
+            const auto mapping = keyboard_.get_mapping(keycode);
+            if (pressed && (mapping.type == KeyType::Id::SKILL ||
+                (mapping.type == KeyType::Id::ACTION &&
+                 (mapping.action == KeyAction::Id::ATTACK || mapping.action == KeyAction::Id::PICKUP)))) {
+                dispatch_key(keycode, true);
+            }
+            return;
+        }
+        if (!pressed && touch_keys_[keycode]) return;
+        dispatch_key(keycode, pressed);
+    }
+
+    void UI::send_touch_key(int32_t keycode, bool pressed) {
+        if (touch_keys_[keycode] == pressed) {
+            const auto mapping = keyboard_.get_mapping(keycode);
+            if (pressed && !physical_keys_[keycode] && !focused_text_field_ &&
+                (mapping.type == KeyType::Id::SKILL ||
+                 (mapping.type == KeyType::Id::ACTION &&
+                  (mapping.action == KeyAction::Id::ATTACK || mapping.action == KeyAction::Id::PICKUP)))) {
+                dispatch_key(keycode, true);
+            }
+            return;
+        }
+        touch_keys_[keycode] = pressed;
+        if (physical_keys_[keycode]) return;
+        dispatch_key(keycode, pressed);
+    }
+
+    bool UI::mobile_controls_visible() {
+        if (!controls_visible_ || focused_text_field_) return false;
+        auto status = get_element<UIStatusBar>();
+        if (status && status->get().is_menu_active()) return false;
+        if (state_ && get_state_type() == typeid(UIStateGame))
+            return !static_cast<const UIStateGame *>(state_.get())->blocks_mobile_input();
+        return true;
+    }
+
+    void UI::release_keys() {
+        for (const auto &entry : is_key_down_) {
+            if (entry.second) {
+                const auto mapping = keyboard_.get_mapping(entry.first);
+                if (mapping.type == KeyType::Id::ACTION || mapping.type == KeyType::Id::SKILL) {
+                    Stage::get().send_key(mapping.type, mapping.action, false);
+                }
+            }
+        }
+        mobile_input_.reset();
+        touch_phase_.clear();
+        physical_keys_.clear();
+        touch_keys_.clear();
+        is_key_down_.clear();
+    }
+
+    void UI::dispatch_key(int32_t keycode, bool pressed) {
         if ((is_key_down_[GLFMKeyCodeAltLeft] || is_key_down_[GLFMKeyCodeAltRight])
             && (is_key_down_[GLFMKeyCodeEnter] || is_key_down_[GLFMKeyCodeNumpadEnter])) {
             Window::get().toggle_fullscreen();
@@ -176,7 +252,7 @@ namespace ms {
             return;
         }
 
-        if (is_key_down_[keyboard_.capslock_code()]) {
+        if (keycode == keyboard_.capslock_code() && pressed && !is_key_down_[keycode]) {
             caps_lock_enabled_ = !caps_lock_enabled_;
         }
 
@@ -372,7 +448,6 @@ namespace ms {
             focused_text_field_->get().send_key(KeyType::Id::TEXT, unicode, true);
         }
 
-        is_key_down_[unicode] = true;  // maybe remove
     }
 
     void UI::set_scrollnotice(const std::string &notice) {
@@ -380,6 +455,7 @@ namespace ms {
     }
 
     void UI::focus_textfield(Textfield *tofocus) {
+        if (tofocus) release_keys();
         if (focused_text_field_) {
             focused_text_field_->get().set_state(Textfield::State::NORMAL);
         }
@@ -444,7 +520,7 @@ namespace ms {
     }
 
     bool UI::should_send_cursor() {
-        if (UI::get().get_state_type() == typeid(UIStateGame)) {
+        if (mobile_controls_visible() && UI::get().get_state_type() == typeid(UIStateGame)) {
             VirtualJoyStick joyStick = mobile_input_.getVirtualJoyStick();
             for (const auto &touch_phase: touch_phase_) {
                 if (joyStick.set_state(touch_phase.second))

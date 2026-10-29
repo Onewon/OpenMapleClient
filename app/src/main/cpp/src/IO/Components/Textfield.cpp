@@ -14,6 +14,7 @@
 //	You should have received a copy of the GNU Affero General Public License
 //	along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "Textfield.h"
+#include "../AndroidInput.h"
 
 #include <sstream>
 #include <utility>
@@ -94,7 +95,7 @@ void Textfield::set_state(State st) {
         }
 
         if (state_ == State::FOCUSED) {
-            glfmSetKeyboardVisible(Window::get().get_display(), true);
+            glfmSetKeyboardVisible(Window::get().get_display(), !AndroidInput::has_keyboard());
             UI::get().focus_textfield(this);
         }
     }

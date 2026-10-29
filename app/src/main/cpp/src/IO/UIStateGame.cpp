@@ -43,6 +43,26 @@
 #include "UIMobileInput.h"
 
 namespace ms {
+    bool UIStateGame::blocks_mobile_input() const {
+        for (const auto &entry : elements_) {
+            const auto &element = entry.second;
+            if (!element || !element->is_active()) continue;
+            switch (entry.first) {
+                case UIElement::Type::STATUS_MESSENGER:
+                case UIElement::Type::STATUS_BAR:
+                case UIElement::Type::CHAT_BAR:
+                case UIElement::Type::BUFF_LIST:
+                case UIElement::Type::MINI_MAP:
+                case UIElement::Type::GAUGE_BOSS:
+                case UIElement::Type::NOTIFICATION:
+                    break;
+                default:
+                    return true;
+            }
+        }
+        return false;
+    }
+
     namespace {
         auto fn_enter_cashshop = []<typename... T>(T &&...args) {
             EnterCashShopPacket(std::forward<T>(args)...).dispatch();

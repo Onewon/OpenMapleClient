@@ -24,6 +24,8 @@ namespace ms {
     public:
         enum MobileButtons : uint16_t {
             ButtonJump,
+            ButtonAttack,
+            ButtonPickup,
             ButtonNormal0,
             ButtonNormal1,
             ButtonNormal2,
@@ -38,6 +40,8 @@ namespace ms {
         void draw() const;
 
         void update();
+        void reset();
+        void update_layout();
 
         std::map<uint16_t, std::unique_ptr<TouchButton>> &getTouchButtons();
 
@@ -46,5 +50,7 @@ namespace ms {
     private:
         std::map<uint16_t, std::unique_ptr<TouchButton>> touch_buttons_;
         VirtualJoyStick joystick_;
+        int16_t layout_width_ = 0;
+        int16_t layout_height_ = 0;
     };
 }  // namespace ms

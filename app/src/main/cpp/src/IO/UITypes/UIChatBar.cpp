@@ -17,6 +17,7 @@
 
 #include <nlnx/nx.hpp>
 
+#include "../../Constants.h"
 #include "../../Net/Packets/MessagingPackets.h"
 #include "../Components/MapleButton.h"
 
@@ -28,6 +29,9 @@ auto fn_general_chat = []<typename... T>(T && ...args) {
 }  // namespace
 
 UIChatBar::UIChatBar() : UIDragElement<PosCHAT>(Point<int16_t>(410, -5)) {
+    layout_height_ = Constants::Constants::get().get_viewheight();
+    if (position_ == Point<int16_t>(0, 572))
+        position_ = Point<int16_t>(18, layout_height_ - 28);
     is_chat_open_ = Setting<Chatopen>::get().load();
     should_chat_open_persist_ = is_chat_open_;
     is_chatfield_open_ = false;
@@ -165,6 +169,11 @@ UIChatBar::UIChatBar() : UIDragElement<PosCHAT>(Point<int16_t>(410, -5)) {
 
     // if (is_chat_open_)
     //	dimension.shift_y(get_chatbar_height());
+}
+
+void UIChatBar::update_screen(int16_t new_width, int16_t new_height) {
+    position_.shift(Point<int16_t>(0, new_height - layout_height_));
+    layout_height_ = new_height;
 }
 
 void UIChatBar::draw(float inter) const {

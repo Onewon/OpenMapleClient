@@ -1,0 +1,13 @@
+<resources>
+    <string name="input_settings">键盘与触屏设置</string>
+    <string name="keyboard_connected">实体键盘已连接并可用</string>
+    <string name="keyboard_disconnected">未检测到可用的实体键盘</string>
+    <string name="controls_visibility">虚拟按键显示方式</string>
+    <string name="controls_auto">自动：实体键盘可用时隐藏</string>
+    <string name="controls_show">始终显示</string>
+    <string name="controls_hide">始终隐藏</string>
+    <string name="keyboard_help">支持平板键盘保护套、USB 和蓝牙键盘。请先在系统中连接。沿用游戏键位配置；隐藏控件不拦截触摸。设置自动保存。游戏内入口：设置 → Joypad。</string>
+    <string name="settings_done">完成</string>
+    <string name="controls_opacity">按键不透明度：%1$d%%</string>
+    <string name="controls_opacity_help">数值越高越清晰，摇杆、按钮和已绑定的技能图标一起生效。在键位设置中将技能绑定到数字键 0–6，即可显示在虚拟按键上。</string>
+</resources>

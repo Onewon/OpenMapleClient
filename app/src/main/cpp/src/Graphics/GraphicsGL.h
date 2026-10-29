@@ -102,6 +102,9 @@ namespace ms {
                          float alpha);
 
         // Fill the screen with the specified color.
+        void draw_ring(int16_t x, int16_t y, int16_t radius, int16_t thickness,
+                       float red, float green, float blue, float alpha);
+
         void draw_screen_fill(float red, float green, float blue, float alpha);
 
         // Lock the current scene

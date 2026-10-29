@@ -20,6 +20,8 @@
 #include "../Components/MapleButton.h"
 #include "../Components/TwoSpriteButton.h"
 #include "../KeyAction.h"
+#include "DisplayModes.h"
+#include "Window.h"
 
 namespace ms {
 UIOptionMenu::UIOptionMenu() :
@@ -61,35 +63,13 @@ UIOptionMenu::UIOptionMenu() :
     MapleComboBox::Type type =
         static_cast<MapleComboBox::Type>(std::stoi(ctype));
 
-    std::vector<std::string> resolutions = { "800 x 600 ( 4 : 3 )",
-                                             "1024 x 768 ( 4 : 3 )",
-                                             "1280 x 720 ( 16 : 9 )",
-                                             "1366 x 768 ( 16 : 9 )",
-                                             "1920 x 1080 ( 16 : 9 ) - Beta" };
-
-    int16_t max_width = Configuration::get().get_max_width();
-    int16_t max_height = Configuration::get().get_max_height();
-
-    if (max_width >= 1920 && max_height >= 1200) {
-        resolutions.emplace_back("1920 x 1200 ( 16 : 10 ) - Beta");
-    }
-
-    uint16_t default_option = 0;
-    int16_t screen_width = Constants::Constants::get().get_viewwidth();
-    int16_t screen_height = Constants::Constants::get().get_viewheight();
-
-    switch (screen_width) {
-        case 800: default_option = 0; break;
-        case 1024: default_option = 1; break;
-        case 1280: default_option = 2; break;
-        case 1366: default_option = 3; break;
-        case 1920:
-            switch (screen_height) {
-                case 1080: default_option = 4; break;
-                case 1200: default_option = 5; break;
-            }
-
-            break;
+    std::vector<std::string> resolutions;
+    uint16_t default_option = 3;
+    const auto width = Setting<Width>::get().load();
+    const auto height = Setting<Height>::get().load();
+    for (size_t i = 0; i < DISPLAY_MODES.size(); ++i) {
+        resolutions.push_back(DISPLAY_MODES[i].label());
+        if (DISPLAY_MODES[i].width == width && DISPLAY_MODES[i].height == height) default_option = i;
     }
 
     int64_t combobox_width =
@@ -109,7 +89,7 @@ UIOptionMenu::UIOptionMenu() :
     dimension_ = bg_dimensions;
     drag_area_ = Point<int16_t>(bg_dimensions.x(), 20);
 
-    change_tab(Buttons::TAB2);
+    change_tab(Buttons::TAB0);
 }
 
 void UIOptionMenu::draw(float inter) const {
@@ -136,42 +116,14 @@ Button::State UIOptionMenu::button_pressed(uint16_t buttonid) {
                     uint16_t selected_value =
                         buttons_[Buttons::SELECT_RES]->get_selected();
 
-                    int16_t width = Constants::Constants::get().get_viewwidth();
-                    int16_t height =
-                        Constants::Constants::get().get_viewheight();
-
-                    switch (selected_value) {
-                        case 0:
-                            width = 800;
-                            height = 600;
-                            break;
-                        case 1:
-                            width = 1024;
-                            height = 768;
-                            break;
-                        case 2:
-                            width = 1280;
-                            height = 720;
-                            break;
-                        case 3:
-                            width = 1366;
-                            height = 768;
-                            break;
-                        case 4:
-                            width = 1920;
-                            height = 1080;
-                            break;
-                        case 5:
-                            width = 1920;
-                            height = 1200;
-                            break;
+                    if (selected_value < DISPLAY_MODES.size()) {
+                        const auto &mode = DISPLAY_MODES[selected_value];
+                        Setting<Width>::get().save(mode.width);
+                        Setting<Height>::get().save(mode.height);
+                        Configuration::get().save();
+                        Constants::Constants::get().set_viewwidth(mode.width);
+                        Constants::Constants::get().set_viewheight(mode.height);
                     }
-
-                    Setting<Width>::get().save(width);
-                    Setting<Height>::get().save(height);
-
-                    Constants::Constants::get().set_viewwidth(width);
-                    Constants::Constants::get().set_viewheight(height);
                 } break;
                 case Buttons::TAB1:
                 case Buttons::TAB2:

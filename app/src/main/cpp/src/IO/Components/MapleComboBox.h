@@ -94,6 +94,6 @@ private:
     uint16_t last_shown_;
     uint16_t selected_index_;
     Point<int16_t> selected_adj_;
-    Point<int16_t> parent_pos_;
+    mutable Point<int16_t> parent_pos_;
 };
 }  // namespace ms

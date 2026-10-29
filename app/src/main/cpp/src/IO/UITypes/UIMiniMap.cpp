@@ -27,6 +27,8 @@ namespace ms {
 UIMiniMap::UIMiniMap(const CharStats &stats) :
     UIDragElement<PosMINIMAP>(Point<int16_t>(128, 20)),
     stats_(stats) {
+    if (position_ == Point<int16_t>(0, 0))
+        position_ = Point<int16_t>(16, 104);
     big_map_ = true;
     has_map_ = false;
     list_npc_enabled_ = false;

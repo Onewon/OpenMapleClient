@@ -72,6 +72,9 @@ namespace ms {
         void doubleclick();
 
         void send_key(int32_t keycode, bool pressed);
+        void send_touch_key(int32_t keycode, bool pressed);
+        void release_keys();
+        bool mobile_controls_visible();
 
         void send_key(uint32_t unicode);
 
@@ -132,6 +135,12 @@ namespace ms {
         std::type_info const& get_state_type();
 
     private:
+        void dispatch_key(int32_t keycode, bool pressed);
+        std::unordered_map<int32_t, bool> physical_keys_;
+        std::unordered_map<int32_t, bool> touch_keys_;
+        unsigned input_generation_ = 0;
+        bool controls_visible_ = true;
+        bool mobile_input_active_ = false;
         std::unique_ptr<UIState> state_;
         std::unordered_map<int16_t, TouchInfo> touch_phase_;
         Keyboard keyboard_;
