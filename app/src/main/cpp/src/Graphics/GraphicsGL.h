@@ -128,6 +128,8 @@ namespace ms {
                       FT_UInt width,
                       FT_UInt height);
 
+        void ensure_glyph(Text::Font id,uint32_t codepoint);
+
         struct Offset {
             GLshort left;
             GLshort right;
@@ -268,7 +270,14 @@ namespace ms {
 
             GLshort width;
             GLshort height;
-            Char chars[256];
+            Char chars[256]{};
+            std::unordered_map<uint32_t,Char> unicode;
+            FT_Face face=nullptr,fallback=nullptr;
+            FT_UInt pixel_height=0;
+            const Char &glyph(uint32_t codepoint) const {
+                if(codepoint<256)return chars[codepoint];
+                auto it=unicode.find(codepoint);return it==unicode.end()?chars['?']:it->second;
+            }
 
             Font(GLshort w, GLshort h) : width(w), height(h) {}
 
@@ -360,5 +369,6 @@ namespace ms {
         Font fonts_[Text::Font::NUM_FONTS];
         Point<GLshort> font_border;
         GLshort font_ymax;
+        GLshort glyph_x_=0,glyph_y_=0,glyph_row_=0;
     };
 }  // namespace ms

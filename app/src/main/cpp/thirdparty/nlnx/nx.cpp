@@ -32,7 +32,24 @@ std::vector<std::unique_ptr<file>> files;
 std::string filePath;
 bool exists(std::string name, GLFMDisplay *pApp)
 {
-    filePath = std::string(((ANativeActivity*)glfmGetAndroidActivity(pApp))->externalDataPath);
+    const std::string appDataPath = std::string(((ANativeActivity*)glfmGetAndroidActivity(pApp))->externalDataPath);
+    const std::string appDataSuffix = "/Android/data/com.OpenMapleClient/files";
+    const std::string sharedSuffix = "/Android/media/com.OpenMapleClient/NX";
+    const auto suffix = appDataPath.rfind(appDataSuffix);
+    const std::string sharedPath = suffix == std::string::npos
+        ? std::string()
+        : appDataPath.substr(0, suffix) + sharedSuffix;
+
+    if (!sharedPath.empty()) {
+        FILE* sharedFile = fopen((sharedPath + "/" + name).c_str(), "rb");
+        if (sharedFile != nullptr) {
+            fclose(sharedFile);
+            filePath = sharedPath;
+            return true;
+        }
+    }
+
+    filePath = appDataPath;
     FILE* file = fopen((filePath + "/" + name).c_str(), "rb");
 
     if (file != nullptr) {

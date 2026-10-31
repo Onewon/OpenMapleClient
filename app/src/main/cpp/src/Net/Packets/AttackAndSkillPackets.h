@@ -17,6 +17,7 @@
 
 #include "../Gameplay/Combat/Attack.h"
 #include "../OutPacket.h"
+#include "../../Character/AdventurerSkills.h"
 
 namespace ms {
 // Notifies the server of an attack. The opcode is determined by the attack
@@ -31,8 +32,8 @@ public:
         write_byte((attack.mobcount << 4) | attack.hitcount);
         write_int(attack.skill);
 
-        if (attack.charge > 0) {
-            write_int(attack.charge);
+        if (adventurer::charge(attack.skill) && attack.skill!=3221001) {
+            write_int(std::max(1,attack.charge));
         }
 
         skip(8);
@@ -49,7 +50,7 @@ public:
             skip(1);
             write_byte(attack.toleft);
             skip(7);
-            // TODO: skip(4); If hurricane, piercing arrow or rapidfire
+            if(adventurer::hold(attack.skill) || attack.skill==3221001) write_int(attack.charge);
         } else {
             skip(4);
         }
@@ -60,13 +61,11 @@ public:
             skip(14);
 
             for (const auto &single_damage : damage_to_mob.second) {
-                write_int(single_damage.first);
-                // TODO: Add critical here
+                write_int(single_damage.second ? (static_cast<uint32_t>(single_damage.first) | 0x80000000u) : single_damage.first);
             }
 
-            if (attack.skill != 5221004) {
-                skip(4);
-            }
+            // The paired v83 server consumes this trailer for every target, including Rapid Fire.
+            skip(4);
         }
     }
 
@@ -78,6 +77,23 @@ private:
             default: return OutPacket::Opcode::MAGIC_ATTACK;
         }
     }
+};
+
+// Meso Explosion uses byte-sized per-target hit counts and a separate consumed-drop list.
+class MesoExplosionPacket:public OutPacket {
+public:MesoExplosionPacket(const AttackResult &attack,const std::vector<int32_t> &coins):OutPacket(Opcode::CLOSE_ATTACK) {
+    skip(1);write_byte((attack.mobcount<<4)|(attack.mobcount?1:0));write_int(4211006);skip(8);
+    write_byte(attack.display);write_byte(attack.toleft);write_byte(attack.stance);
+    if(!attack.mobcount)skip(10);
+    else {
+        skip(6);
+        for(const auto &[oid,lines]:attack.damage_lines) {
+            write_int(oid);skip(12);write_byte(lines.size());for(const auto &line:lines)write_int(line.first);skip(4);
+        }
+        write_int(0);
+    }
+    write_byte(coins.size());for(int32_t oid:coins){write_int(oid);write_byte(0);}
+}
 };
 
 // Tells the server that the player took damage.
@@ -106,29 +122,44 @@ public:
     TakeDamagePacket(const MobAttackResult &result, From from) :
         TakeDamagePacket(from,
                          0,
-                         result.damage,
+                         result.reported_damage,
                          result.mobid,
                          result.oid,
-                         result.direction) {}
+                         result.direction) {
+        if(result.guarded) {
+            write_byte(0);write_byte(2);write_byte(0);write_int(result.oid);write_byte(0);
+            write_point(result.mob_position);write_point(result.player_position);
+        }
+    }
 };
 
+class CancelSkillPacket : public OutPacket {
+public:explicit CancelSkillPacket(int32_t skill):OutPacket(static_cast<Opcode>(92)){write_int(skill);}
+};
+class HealOverTimePacket : public OutPacket {
+public: HealOverTimePacket(int16_t hp,int16_t mp):OutPacket(static_cast<Opcode>(89)) {skip(8);write_short(hp);write_short(mp);}
+};
 // Packet which notifies the server of a skill usage.
 // Opcode: USE_SKILL(91)
 class UseSkillPacket : public OutPacket {
 public:
-    UseSkillPacket(int32_t skillid, int32_t level) :
+    UseSkillPacket(int32_t skillid, int32_t level, Point<int16_t> position={}, const std::vector<int32_t>& targets={}, bool left=false) :
         OutPacket(OutPacket::Opcode::USE_SKILL) {
         write_time();
         write_int(skillid);
         write_byte(static_cast<uint8_t>(level));
 
-        // If monster magnet : some more bytes
+        if(adventurer::magnet(skillid)) {
+            write_int(targets.size());
+            for(int32_t oid:targets) {write_int(oid);write_byte(1);}
+            write_byte(left);return;
+        }
 
         if (skillid % 10000000 == 1004) {
             skip(2);  // TODO: No idea what this could be
         }
 
-        // TODO: A point (4 bytes) could be added at the end
+        write_point(position);write_byte(0);
     }
 };
 }  // namespace ms

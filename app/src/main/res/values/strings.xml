@@ -1,5 +1,21 @@
 <resources>
     <string name="app_name">OpenMapleClient</string>
+    <string name="connection_title">BeiDou v83</string>
+    <string name="server_host">Server IP or hostname</string>
+    <string name="server_port">Login port</string>
+    <string name="channel_same_host">Use this host for channel connections</string>
+    <string name="connection_help">Configure the BeiDou login endpoint. The emulator can reach the PC through 10.0.2.2. Install NX resources to Android/media/com.OpenMapleClient/NX.</string>
+    <string name="invalid_endpoint">Enter a server address and a port between 1 and 65535.</string>
+    <string name="check_connection">Check connection</string>
+    <string name="checking_connection">Checking the v83 server handshake…</string>
+    <string name="incomplete_handshake">Incomplete server handshake</string>
+    <string name="unsupported_handshake">The server did not return a GMS v83 handshake.</string>
+    <string name="connection_success">Connected to %1$s:%2$d — GMS v%3$d, locale 8. This checks the handshake only; login and gameplay still need verification.</string>
+    <string name="connection_failure">Failed: %1$s</string>
+    <string name="start_game">Start game</string>
+    <string name="shared_storage_permission">Allow all-files access in the next screen to read the installed NX resource pack.</string>
+    <string name="resource_install_incomplete">NX installation is incomplete. Reopen the NX installer and run it again before starting the game.</string>
+    <string name="missing_resources">Copy the required NX files to:\n%1$s\n\nMissing: %2$s</string>
     <string name="input_settings">Keyboard and touch controls</string>
     <string name="keyboard_connected">Physical keyboard available</string>
     <string name="keyboard_disconnected">No available physical keyboard</string>

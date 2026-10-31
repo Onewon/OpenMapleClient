@@ -23,9 +23,9 @@ MesoDrop::MesoDrop(int32_t oid,
                    int8_t type,
                    int8_t mode,
                    bool pd,
-                   const Animation &icn) :
+                   const Animation &icn,int32_t amount) :
     Drop(oid, owner, start, dest, type, mode, pd),
-    icon_(icn) {}
+    icon_(icn) {meso_amount_=amount;}
 
 void MesoDrop::draw(double viewx, double viewy, float alpha) const {
     if (!active_) {

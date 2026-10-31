@@ -1,3 +1,4 @@
+#include <android/log.h>
 //	This file is part of the continued Journey MMORPG client
 //	Copyright (C) 2015-2019  Daniel Allendorf, Ryan Payton
 //
@@ -153,6 +154,7 @@ void ServerMessageHandler::handle(InPacket &recv) const {
     }
 
     std::string message = recv.read_string();
+    __android_log_print(ANDROID_LOG_INFO,"ServerNotice","type=%d text=%s",type,message.c_str());
 
     if (type == 3) {
         recv.read_byte();  // channel
@@ -168,6 +170,7 @@ void WeekEventMessageHandler::handle(InPacket &recv) const {
     recv.read_byte();  // TODO: Always 0xFF, Check this!
 
     std::string message = recv.read_string();
+    __android_log_print(ANDROID_LOG_INFO,"ServerNotice","text=%s",message.c_str());
 
     static const std::string MAPLETIP = "[MapleTip]";
 
@@ -252,7 +255,8 @@ void ScrollResultHandler::handle(InPacket &recv) const {
 void ShowItemGainInChatHandler::handle(InPacket &recv) const {
     int8_t mode1 = recv.read_byte();
 
-    if (mode1 == 3) {
+    if(mode1==7) {Sound(Sound::Name::PORTAL).play();return;}
+    if(mode1==3) {
         int8_t mode2 = recv.read_byte();
 
         if (mode2 == 1)  // This is actually 'item gain in chat'

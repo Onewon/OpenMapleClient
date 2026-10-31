@@ -101,8 +101,10 @@ public:
     std::vector<std::pair<int32_t, bool>> calculate_damage(
         const Attack &attack);
 
+    bool is_undead() const {return undead_;}
+    bool is_invincible() const {return invincible_;}
     // Apply damage to the mob.
-    void apply_damage(int32_t damage, bool toleft);
+    void apply_damage(int32_t damage, bool toleft, int32_t skill=0, float knockback_ratio=1.0f, int32_t skill_level=0);
 
     // Create a touch damage attack to the player
     MobAttack create_touch_attack() const;
@@ -138,6 +140,12 @@ public:
     void cancel_buff(int32_t stat);
 
     bool has_buff() const;
+    void set_status(uint64_t mask,int16_t value,int32_t source=0);
+    void remove_status(uint64_t mask);
+    int16_t status(uint64_t mask) const;
+    int32_t status_source(uint64_t mask) const;
+    bool immobile() const;
+
 
 private:
     enum FlyDirection { STRAIGHT, UPWARDS, DOWNWARDS, NUM_DIRECTIONS };
@@ -174,7 +182,7 @@ private:
     std::pair<int32_t, bool> next_damage(double mindamage,
                                          double maxdamage,
                                          float hitchance,
-                                         float critical) const;
+                                         float critical, float critical_damage = 1.5f) const;
 
     // Return the current 'head' position
     Point<int16_t> get_head_position(Point<int16_t> position) const;
@@ -185,6 +193,8 @@ private:
     std::unordered_map<int32_t, Animation> skill_stands_;
     std::unordered_map<int32_t, Animation> attack_stands_;
     std::vector<MobBuff> buffs_;
+    std::unordered_map<uint64_t,int16_t> statuses_;
+    std::unordered_map<uint64_t,int32_t> status_sources_;
     std::string name_;
     Sound hit_sound_;
     Sound die_sound_;
@@ -198,7 +208,10 @@ private:
     uint16_t accuracy_;
     uint16_t avoid_;
     uint16_t knockback_;
+    bool aran_launched_=false;
     bool undead_;
+    bool invincible_=false;
+    std::string elemental_attributes_;
     bool touch_damage_;
     bool no_flip_;
     bool not_attack_;

@@ -19,6 +19,10 @@ namespace ms {
 void RegularAttack::apply_useeffects(Char &) const {}
 
 void RegularAttack::apply_actions(Char &user, Attack::Type type) const {
+    if(user.get_weapontype()==Weapon::POLEARM && user.get_skilllevel(21000002)>0) {
+        user.attack(std::string("swingP1"));
+        return;
+    }
     action_.apply(user, type);
 }
 
@@ -26,7 +30,7 @@ void RegularAttack::apply_stats(const Char &user, Attack &attack) const {
     attack.damagetype = Attack::DMG_WEAPON;
     attack.skill = 0;
     attack.mobcount = 1;
-    attack.hitcount = 1;
+    attack.hitcount = attack.shadow_ratio>0 ? 2:1;
     attack.stance = user.get_look().get_stance();
 
     if (attack.type == Attack::CLOSE) {

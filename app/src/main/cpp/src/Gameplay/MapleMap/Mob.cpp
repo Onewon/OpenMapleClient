@@ -1,3 +1,6 @@
+#include <android/log.h>
+#include "../Combat/AdventurerRules.h"
+#include "../Stage.h"
 //	This file is part of the continued Journey MMORPG client
 //	Copyright (C) 2015-2019  Daniel Allendorf, Ryan Payton
 //
@@ -53,6 +56,8 @@ Mob::Mob(int32_t oi,
     fly_speed_ = info["flySpeed"];
     touch_damage_ = info["bodyAttack"].get_bool();
     undead_ = info["undead"].get_bool();
+    invincible_=info["invincible"].get_bool();
+    elemental_attributes_=info["elemAttr"].get_string();
     is_boss_ = info["boss"].get_bool();
     no_flip_ = info["noFlip"].get_bool();
     not_attack_ = info["notAttack"].get_bool();
@@ -246,7 +251,10 @@ int8_t Mob::update(const Physics &physics) {
             case Stance::JUMP: phobj_.vforce = -5.0; break;
         }
 
+        if(immobile()) {phobj_.hforce=phobj_.hspeed=0;if(can_fly_)phobj_.vforce=phobj_.vspeed=0;}
+        else if(status(0x40)) phobj_.hforce*=std::clamp(1.0+status(0x40)/100.0,0.05,2.0);
         physics.move_object(phobj_);
+        if (phobj_.onground) aran_launched_=false;
 
         if (control_) {
             counter_++;
@@ -274,6 +282,7 @@ int8_t Mob::update(const Physics &physics) {
 }
 
 void Mob::next_move() {
+    if(immobile()) {set_stance(Stance::STAND);return;}
     if (can_move_) {
         switch (stance_) {
             case Stance::HIT:
@@ -340,6 +349,17 @@ void Mob::update_movement(int16_t type,
                 Movement(phobj_, value_of(stance_, flip_)));
 }
 
+void Mob::set_status(uint64_t mask,int16_t value,int32_t source) {
+    statuses_[mask]=value;status_sources_[mask]=source;
+    __android_log_print(ANDROID_LOG_INFO,"MonsterStatus","oid=%d mask=%llu value=%d source=%d",oid_,static_cast<unsigned long long>(mask),value,source);
+    if(immobile() && !dying_) {phobj_.hspeed=0;phobj_.hforce=0;set_stance(Stance::STAND);if(control_)update_movement();}
+}
+void Mob::remove_status(uint64_t mask) {
+    for(auto it=statuses_.begin();it!=statuses_.end();) {if(mask&it->first){status_sources_.erase(it->first);it=statuses_.erase(it);}else ++it;}
+}
+int16_t Mob::status(uint64_t mask) const {auto it=statuses_.find(mask);return it==statuses_.end()?0:it->second;}
+int32_t Mob::status_source(uint64_t mask) const {auto it=status_sources_.find(mask);return it==status_sources_.end()?0:it->second;}
+bool Mob::immobile() const {return status(0x80)||status(0x100)||status(0x20000)||status(0x10000000);}
 void Mob::give_buff(const MobBuff &buff) {
     buffs_.push_back(buff);
 }
@@ -498,7 +518,7 @@ float Mob::calculate_hitchance(int16_t leveldelta,
                                int32_t player_accuracy) const {
     float faccuracy = static_cast<float>(player_accuracy);
     float hitchance =
-        faccuracy / (((1.84f + 0.07f * leveldelta) * avoid_) + 1.0f);
+        faccuracy / (((1.84f + 0.07f * leveldelta) * adventurer::monster_stat(avoid_,status(0x20))) + 1.0f);
 
     if (hitchance < 0.01f) {
         hitchance = 0.01f;
@@ -510,8 +530,8 @@ float Mob::calculate_hitchance(int16_t leveldelta,
 double Mob::calculate_mindamage(int16_t leveldelta,
                                 double damage,
                                 bool magic) const {
-    double mindamage = magic ? damage - (1 + 0.01 * leveldelta) * mdef_ * 0.6
-                             : damage * (1 - 0.01 * leveldelta) - wdef_ * 0.6;
+    double mindamage = magic ? damage - (1 + 0.01 * leveldelta) * adventurer::monster_stat(mdef_,status(8),status_source(8)==4121003 || status_source(8)==4221003) * 0.6
+                             : damage * (1 - 0.01 * leveldelta) - adventurer::monster_stat(wdef_,status(2),status_source(2)==4121003 || status_source(2)==4221003) * 0.6;
 
     return mindamage < 1.0 ? 1.0 : mindamage;
 }
@@ -519,8 +539,8 @@ double Mob::calculate_mindamage(int16_t leveldelta,
 double Mob::calculate_maxdamage(int16_t leveldelta,
                                 double damage,
                                 bool magic) const {
-    double maxdamage = magic ? damage - (1 + 0.01 * leveldelta) * mdef_ * 0.5
-                             : damage * (1 - 0.01 * leveldelta) - wdef_ * 0.5;
+    double maxdamage = magic ? damage - (1 + 0.01 * leveldelta) * adventurer::monster_stat(mdef_,status(8),status_source(8)==4121003 || status_source(8)==4221003) * 0.5
+                             : damage * (1 - 0.01 * leveldelta) - adventurer::monster_stat(wdef_,status(2),status_source(2)==4121003 || status_source(2)==4221003) * 0.5;
 
     return maxdamage < 1.0 ? 1.0 : maxdamage;
 }
@@ -531,6 +551,7 @@ std::vector<std::pair<int32_t, bool>> Mob::calculate_damage(
     double maxdamage;
     float hitchance;
     float critical;
+    float critical_damage=attack.critical_damage;
     int16_t leveldelta = level_ - attack.playerlevel;
 
     if (leveldelta < 0) {
@@ -538,17 +559,20 @@ std::vector<std::pair<int32_t, bool>> Mob::calculate_damage(
     }
 
     Attack::DamageType damagetype = attack.damagetype;
+    double multiplier=adventurer::elemental_multiplier(elemental_attributes_,attack.element,attack.neutral_elements || status(0x10000),attack.weak_multiplier);
+    if(attack.beacon_target==oid_)multiplier*=1+attack.beacon_bonus;
+
 
     switch (damagetype) {
         case Attack::DamageType::DMG_WEAPON:
         case Attack::DamageType::DMG_MAGIC:
             mindamage = calculate_mindamage(
                 leveldelta,
-                attack.mindamage,
+                attack.mindamage*multiplier,
                 damagetype == Attack::DamageType::DMG_MAGIC);
             maxdamage = calculate_maxdamage(
                 leveldelta,
-                attack.maxdamage,
+                attack.maxdamage*multiplier,
                 damagetype == Attack::DamageType::DMG_MAGIC);
             hitchance = calculate_hitchance(leveldelta, attack.accuracy);
             critical = attack.critical;
@@ -561,11 +585,29 @@ std::vector<std::pair<int32_t, bool>> Mob::calculate_damage(
             break;
     }
 
-    std::vector<std::pair<int32_t, bool>> result(attack.hitcount);
 
-    std::generate(result.begin(), result.end(), [&]() {
-        return next_damage(mindamage, maxdamage, hitchance, critical);
-    });
+    if(status(0x80)) {
+        for(int id:{5110000}) {
+            const auto &player=Stage::get().get_player();
+            const int level=player.get_skilllevel(id);
+            if(level>0) {const auto n=nl::nx::skill["511.img"]["skill"]["5110000"]["level"][level];critical=std::min(1.0f,critical+n["prop"].get_integer()/100.0f);critical_damage=std::max(critical_damage,n["damage"].get_integer(150)/100.0f);}
+        }
+    }
+    if(attack.skill==3221007) {
+        mindamage=195000;maxdamage=199999;hitchance=1;critical=0;
+    }
+    if((attack.damagetype==Attack::DMG_MAGIC && status(0x80000)) || (attack.damagetype==Attack::DMG_WEAPON && status(0x40000))) {mindamage=maxdamage=1;critical=0;}
+    if (aran_launched_ && !phobj_.onground && !is_boss_) {
+        mindamage*=attack.air_damage; maxdamage*=attack.air_damage;
+    }
+    std::vector<std::pair<int32_t, bool>> result(attack.hitcount);
+    if(invincible_)return result;
+
+    const int originals=attack.shadow_ratio>0 ? attack.hitcount/2 : attack.hitcount;
+    for(int i=0;i<attack.hitcount;++i) {
+        if(i>=originals && attack.shadow_ratio>0) result[i]={static_cast<int32_t>(result[i-originals].first*attack.shadow_ratio),result[i-originals].second};
+        else {const double scale=adventurer::hit_multiplier(attack.skill,i);result[i]=next_damage(mindamage*scale,maxdamage*scale,hitchance,critical,critical_damage);}
+    }
 
     update_movement();
 
@@ -575,7 +617,7 @@ std::vector<std::pair<int32_t, bool>> Mob::calculate_damage(
 std::pair<int32_t, bool> Mob::next_damage(double mindamage,
                                           double maxdamage,
                                           float hitchance,
-                                          float critical) const {
+                                          float critical, float critical_damage) const {
     bool hit = randomizer_.below(hitchance);
 
     if (!hit) {
@@ -588,7 +630,7 @@ std::pair<int32_t, bool> Mob::next_damage(double mindamage,
     bool iscritical = randomizer_.below(critical);
 
     if (iscritical) {
-        damage *= 1.5;
+        damage *= critical_damage;
     }
 
     if (damage < 1) {
@@ -602,13 +644,25 @@ std::pair<int32_t, bool> Mob::next_damage(double mindamage,
     return std::pair<int32_t, bool>(intdamage, iscritical);
 }
 
-void Mob::apply_damage(int32_t damage, bool toleft) {
+void Mob::apply_damage(int32_t damage, bool toleft, int32_t skill, float knockback_ratio, int32_t skill_level) {
     hit_sound_.play();
+    if (phobj_.onground) aran_launched_=false;
 
+    const auto spin=nl::nx::skill["2111.img"]["skill"]["21110006"]["level"][skill_level];
+    const bool spin_push=skill==21110006 && skill_level>0 && randomizer_.below(spin["prop"].get_integer()/100.0f);
     if (dying_ && stance_ != Stance::DIE) {
         apply_death();
-    } else if (control_ && is_alive() && damage >= knockback_ && !is_boss_) {
+    } else if (control_ && is_alive() && damage>0 && (spin_push || skill==21110003 || skill==21100002 || damage >= knockback_*knockback_ratio) && !is_boss_) {
         flip_ = toleft;
+        if (spin_push || skill==21100002) {
+            const double force=spin_push ? spin["range"].get_integer(100)/40.0 : 5.0;
+            phobj_.hspeed=toleft ? -force : force;
+        }
+        if (skill==21110003 && !can_fly_) {
+            phobj_.vspeed=-8.0;
+            phobj_.onground=false;
+            aran_launched_=true;
+        }
         counter_ = 170;
         set_stance(Stance::HIT);
 
@@ -621,8 +675,8 @@ MobAttack Mob::create_touch_attack() const {
         return MobAttack();
     }
 
-    int32_t minattack = static_cast<int32_t>(watk_ * 0.8f);
-    int32_t maxattack = watk_;
+    int32_t maxattack = adventurer::monster_stat(watk_,status(1));
+    int32_t minattack = static_cast<int32_t>(maxattack * 0.8f);
     int32_t attack = randomizer_.next_int(minattack, maxattack);
 
     return MobAttack(attack, get_position(), id_, oid_);

@@ -1,4 +1,21 @@
 <resources>
+    <string name="app_name">北斗083</string>
+    <string name="connection_title">北斗 v83</string>
+    <string name="server_host">服务器 IP 或域名</string>
+    <string name="server_port">登录端口</string>
+    <string name="channel_same_host">频道连接使用相同服务器地址</string>
+    <string name="connection_help">填写北斗登录地址。模拟器可通过 10.0.2.2 访问电脑。NX 资源目录：Android/media/com.OpenMapleClient/NX。</string>
+    <string name="invalid_endpoint">请填写服务器地址，端口范围为 1 至 65535。</string>
+    <string name="check_connection">检测连接</string>
+    <string name="checking_connection">正在检测 v83 服务端握手…</string>
+    <string name="incomplete_handshake">服务端握手数据不完整</string>
+    <string name="unsupported_handshake">服务端没有返回 GMS v83 握手数据。</string>
+    <string name="connection_success">已连接 %1$s:%2$d，GMS v%3$d，区域码 8。此结果仅验证握手，登录及游戏仍需验证。</string>
+    <string name="connection_failure">失败：%1$s</string>
+    <string name="start_game">开始游戏</string>
+    <string name="shared_storage_permission">请在接下来的系统页面中允许“所有文件访问”，客户端才能读取已安装的 NX 资源包。</string>
+    <string name="resource_install_incomplete">NX 资源安装未完成。请重新打开 NX 安装器并再次安装，然后再启动游戏。</string>
+    <string name="missing_resources">请将 NX 资源复制到：\n%1$s\n\n缺少：%2$s</string>
     <string name="input_settings">键盘与触屏设置</string>
     <string name="keyboard_connected">实体键盘已连接并可用</string>
     <string name="keyboard_disconnected">未检测到可用的实体键盘</string>

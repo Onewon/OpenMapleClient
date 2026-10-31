@@ -28,7 +28,7 @@ void Job::change_job(uint16_t i) {
     id_ = i;
     name_ = get_name(id_);
 
-    if (id_ == 0) {
+    if (id_ % 1000 == 0) {
         level_ = Level::BEGINNER;
     } else if (id_ % 100 == 0) {
         level_ = Level::FIRST;
@@ -65,7 +65,7 @@ uint16_t Job::get_id() const {
 uint16_t Job::get_subjob(Level lv) const {
     if (lv <= level_) {
         switch (lv) {
-            case Level::BEGINNER: return 0;
+            case Level::BEGINNER: return (id_ / 1000) * 1000;
             case Level::FIRST: return (id_ / 100) * 100;
             case Level::SECOND: return (id_ / 10) * 10;
             case Level::THIRD: return (level_ == Level::FOURTH) ? id_ - 1 : id_;

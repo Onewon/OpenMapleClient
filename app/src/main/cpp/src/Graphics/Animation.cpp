@@ -95,11 +95,13 @@ Rectangle<int16_t> Frame::get_bounds() const {
 }
 
 float Frame::opcstep(uint16_t timestep) const {
+    if(!delay_) return 0;
     return timestep * static_cast<float>(opacities_.second - opacities_.first)
            / delay_;
 }
 
 float Frame::scalestep(uint16_t timestep) const {
+    if(!delay_) return 0;
     return timestep * static_cast<float>(scales_.second - scales_.first)
            / delay_;
 }
@@ -145,6 +147,7 @@ Animation::Animation() : animated_(false), zigzag_(false) {
 }
 
 void Animation::reset() {
+    if(frames_.empty()) frames_.emplace_back();
     frame_.set(0);
     opacity_.set(frames_[0].start_opacity());
     xyscale_.set(frames_[0].start_scale());
@@ -159,7 +162,8 @@ void Animation::stop() {
 }
 
 void Animation::draw(const DrawArgument &args, float alpha) const {
-    int16_t interframe = frame_.get(alpha);
+    if(frames_.empty()) return;
+    int16_t interframe = std::clamp<int16_t>(frame_.get(alpha),0,frames_.size()-1);
     float interopc = opacity_.get(alpha) / 255;
     float interscale = xyscale_.get(alpha) / 100;
 
@@ -179,6 +183,7 @@ bool Animation::update() {
 }
 
 bool Animation::update(uint16_t timestep) {
+    if(frames_.empty()) return true;
     const Frame &framedata = get_frame();
 
     opacity_ += framedata.opcstep(timestep);
@@ -243,21 +248,21 @@ bool Animation::update(uint16_t timestep) {
 }
 
 uint16_t Animation::get_delay(int16_t frame_id) const {
-    return frame_id < frames_.size() ? frames_[frame_id].get_delay() : 0;
+    return frame_id>=0 && frame_id < frames_.size() ? frames_[frame_id].get_delay() : 0;
 }
 
 uint16_t Animation::getdelayuntil(int16_t frame_id) const {
-    uint16_t total = 0;
+    uint32_t total = 0;
 
     for (int i = 0; i < frame_id; i++) {
         if (i >= frames_.size()) {
             break;
         }
 
-        total += frames_[frame_id].get_delay();
+        total += frames_[i].get_delay();
     }
 
-    return total;
+    return static_cast<uint16_t>(std::min<uint32_t>(total,65535));
 }
 
 Point<int16_t> Animation::get_origin() const {

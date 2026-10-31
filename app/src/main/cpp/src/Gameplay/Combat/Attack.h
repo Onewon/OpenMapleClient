@@ -33,8 +33,13 @@ struct Attack {
     double mindamage = 1.0;
     double maxdamage = 1.0;
     float critical = 0.0f;
+    float critical_damage = 1.5f;
+    float air_damage = 1.0f;
     float ignoredef = 0.0f;
     int32_t matk = 0;
+    int32_t weapon_attack = 0;
+    int32_t magic = 0, intelligence = 0, luck = 0;
+    float mastery = 0.1f;
     int32_t accuracy = 0;
     int32_t fixdamage = 0;
     uint16_t playerlevel = 1;
@@ -50,6 +55,14 @@ struct Attack {
     Rectangle<int16_t> range;
     float hrange = 1.0f;
     bool toleft = false;
+    bool undead_only = false;
+    float shadow_ratio = 0;
+    char element=0;
+    bool neutral_elements=false;
+    double weak_multiplier=1.5;
+    int32_t beacon_target=0;
+    float beacon_bonus=0;
+
 };
 
 // an attack coming from a mob
@@ -57,6 +70,9 @@ struct MobAttack {
     Attack::Type type = Attack::Type::CLOSE;
     int32_t watk = 0;
     int32_t matk = 0;
+    int32_t weapon_attack = 0;
+    int32_t magic = 0, intelligence = 0, luck = 0;
+    float mastery = 0.1f;
     int32_t mobid = 0;
     int32_t oid = 0;
     Point<int16_t> origin;
@@ -78,7 +94,10 @@ struct MobAttack {
 
 // result of a mob's attack
 struct MobAttackResult {
+    bool guarded=false;
+    Point<int16_t> mob_position,player_position;
     int32_t damage;
+    int32_t reported_damage;
     int32_t mobid;
     int32_t oid;
     uint8_t direction;
@@ -87,6 +106,7 @@ struct MobAttackResult {
                     int32_t damage,
                     uint8_t direction) :
         damage(damage),
+        reported_damage(damage),
         mobid(attack.mobid),
         oid(attack.oid),
         direction(direction) {}
@@ -130,5 +150,7 @@ struct AttackUser {
     uint16_t level;
     bool second_weapon;
     bool flip;
+    float knockback_ratio = 1.0f;
+    Point<int16_t> origin;
 };
 }  // namespace ms

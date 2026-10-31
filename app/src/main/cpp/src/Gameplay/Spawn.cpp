@@ -136,7 +136,7 @@ std::unique_ptr<MapObject> DropSpawn::instantiate(const Animation &icon) const {
                                       drop_type_,
                                       mode_,
                                       player_drop_,
-                                      icon);
+                                      icon,id_);
 }
 
 std::unique_ptr<MapObject> DropSpawn::instantiate(const Texture &icon) const {

@@ -28,7 +28,7 @@ Afterimage::Afterimage(int32_t skill_id,
 
     if (skill_id > 0) {
         std::string strid = string_format::extend_id(skill_id, 7);
-        src = nl::nx::skill[strid.substr(0, 3) + ".img"]["skill"][strid]
+        src = nl::nx::skill[strid.substr(0, strid.size() - 4) + ".img"]["skill"][strid]
                            ["afterimage"][name][stance_name];
     }
 

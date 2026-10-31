@@ -1,0 +1,44 @@
+apply plugin: 'com.android.application'
+apply plugin: 'org.jetbrains.kotlin.android'
+
+def releaseSigning = [
+        storeFile: System.getenv('MAPLE_RELEASE_STORE_FILE'),
+        storePassword: System.getenv('MAPLE_RELEASE_STORE_PASSWORD'),
+        keyAlias: System.getenv('MAPLE_RELEASE_KEY_ALIAS'),
+        keyPassword: System.getenv('MAPLE_RELEASE_KEY_PASSWORD')
+]
+def hasReleaseSigning = releaseSigning.values().every { it != null && !it.isEmpty() }
+
+android {
+    namespace 'com.openmaple.nxinstaller'
+    compileSdk 34
+    defaultConfig {
+        applicationId 'com.openmaple.nxinstaller'
+        minSdk 31
+        targetSdk 34
+        versionCode 2
+        versionName '1.1'
+    }
+    if (hasReleaseSigning) {
+        signingConfigs {
+            release {
+                storeFile file(releaseSigning.storeFile)
+                storePassword releaseSigning.storePassword
+                keyAlias releaseSigning.keyAlias
+                keyPassword releaseSigning.keyPassword
+            }
+        }
+    }
+    buildTypes {
+        release {
+            if (hasReleaseSigning) signingConfig signingConfigs.release
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+    kotlinOptions { jvmTarget = '17' }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}

@@ -47,6 +47,7 @@ public:
     void set_portal(uint8_t portal);
 
     void set_mastery(float mastery);
+    void set_mastery_total(float mastery) { mastery_=mastery; }
 
     void set_damagepercent(float damagepercent);
 
@@ -54,7 +55,7 @@ public:
 
     void change_job(uint16_t id);
 
-    int32_t calculate_damage(int32_t mobatk) const;
+    int32_t calculate_damage(int32_t mobatk,bool apply_reduction=true) const;
 
     bool is_damage_buffed() const;
 
@@ -83,6 +84,8 @@ public:
     float get_mastery() const;
 
     float get_critical() const;
+    void set_critical(float value) {critical_=value;}
+    void add_projectile_range(int32_t value) {projectile_range_+=value;}
 
     float get_mincrit() const;
 

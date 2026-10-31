@@ -224,6 +224,7 @@ namespace ms {
     }
 
     void UI::release_keys() {
+        Stage::get().get_combat().clear_inputs();
         for (const auto &entry : is_key_down_) {
             if (entry.second) {
                 const auto mapping = keyboard_.get_mapping(entry.first);

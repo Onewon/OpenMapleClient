@@ -1,3 +1,4 @@
+#include "TextEncoding.h"
 //	This file is part of the continued Journey MMORPG client
 //	Copyright (C) 2015-2019  Daniel Allendorf, Ryan Payton
 //
@@ -79,11 +80,11 @@ Point<int16_t> InPacket::read_point() {
 }
 
 std::string InPacket::read_string() {
-    return read<std::string>();
+    return wire_text::decode(read<std::string>());
 }
 
 std::string InPacket::read_padded_string(uint16_t count) {
-    return read(count);
+    return wire_text::decode(read(count));
 }
 
 void InPacket::skip_bool() {

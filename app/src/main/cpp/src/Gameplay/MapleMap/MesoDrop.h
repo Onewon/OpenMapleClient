@@ -28,7 +28,7 @@ public:
              int8_t type,
              int8_t mode,
              bool playerdrop,
-             const Animation &icon);
+             const Animation &icon,int32_t amount);
 
     void draw(double viewx, double viewy, float alpha) const override;
 

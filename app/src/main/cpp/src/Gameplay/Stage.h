@@ -89,6 +89,8 @@ public:
 
     // Returns a reference to the Player.
     Player &get_player();
+    const Physics &get_physics() const {return physics_;}
+    void place_player(Point<int16_t> position);
 
     // Return a reference to the attack and buff component.
     Combat &get_combat();

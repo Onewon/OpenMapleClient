@@ -14,6 +14,7 @@
 //	You should have received a copy of the GNU Affero General Public License
 //	along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "SkillBook.h"
+#include "AranSkills.h"
 
 #include "../Data/SkillData.h"
 
@@ -30,12 +31,9 @@ bool SkillBook::has_skill(int32_t id) const {
 }
 
 int32_t SkillBook::get_level(int32_t id) const {
-    auto iter = skill_entries_.find(id);
+    auto iter = skill_entries_.find(aran::parent(id));
 
-    if (iter == skill_entries_.end()) {
-        return 0;
-    }
-
+    if (iter == skill_entries_.end()) return 0;
     return iter->second.level;
 }
 

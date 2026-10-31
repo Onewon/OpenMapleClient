@@ -159,6 +159,8 @@ add_library(OpenMapleClient SHARED
         src/Gameplay/MapleMap/Reactor.cpp
         src/Gameplay/MapleMap/Tile.cpp
         src/Gameplay/Combat/Bullet.cpp
+        src/Gameplay/Combat/SummonCombat.cpp
+        src/Gameplay/Combat/MesoExplosion.cpp
         src/Gameplay/Combat/Combat.cpp
         src/Gameplay/Combat/DamageNumber.cpp
         src/Gameplay/Combat/MobCombat.cpp
@@ -248,4 +250,4 @@ target_include_directories(OpenMapleClient
         ${CMAKE_SOURCE_DIR}/thirdparty/glfm/include
         )
 # add lib dependencies
-target_link_libraries(OpenMapleClient glfm android log GLESv3 freetype NoLifeNx ${CMAKE_SOURCE_DIR}/thirdparty/bass/libs/arm64-v8a/libbass.so)
+target_link_libraries(OpenMapleClient glfm android log GLESv3 freetype NoLifeNx ${CMAKE_SOURCE_DIR}/thirdparty/bass/libs/${ANDROID_ABI}/libbass.so)

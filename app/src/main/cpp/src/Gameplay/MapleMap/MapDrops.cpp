@@ -95,6 +95,18 @@ void MapDrops::clear() {
     drops_.clear();
 }
 
+std::vector<MapDrops::Meso> MapDrops::select_mesos(int32_t owner,Rectangle<int16_t> bounds,Point<int16_t> origin,size_t limit) {
+    std::vector<Meso> result;
+    for(auto &[oid,obj]:drops_) {
+        auto &drop=static_cast<Drop&>(*obj);
+        if(drop.meso_amount()>0 && drop.can_explode(owner) && bounds.contains(drop.get_position()))result.push_back({oid,drop.meso_amount(),drop.get_position()});
+    }
+    std::sort(result.begin(),result.end(),[&](const auto &a,const auto &b){return origin.distance(a.position)<origin.distance(b.position);});
+    if(result.size()>limit)result.resize(limit);
+    for(const auto &meso:result)if(auto drop=drops_.get<Drop>(meso.oid))drop->get().reserve_explosion();
+    return result;
+}
+
 MapDrops::Loot MapDrops::find_loot_at(Point<int16_t> playerpos) {
     if (!loot_enabled_) {
         return { 0, {} };

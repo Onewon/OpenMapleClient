@@ -214,6 +214,8 @@ namespace ms {
         add_font(assetManager, FONT_NORMAL_STR, Text::Font::A18M, 0, 18);
 
         font_ymax += font_border.y();
+        glyph_x_=0;glyph_y_=font_ymax+1;glyph_row_=0;
+        font_ymax=std::max<GLshort>(512,glyph_y_+32);
 
         leftovers_ = QuadTree<size_t, Leftover>(
                 [](const Leftover &first, const Leftover &second) {
@@ -298,6 +300,7 @@ namespace ms {
         }
 
         fonts_[id] = Font(width, height);
+        fonts_[id].face=face;fonts_[id].pixel_height=pixelh;
 
         GLshort ox = x;
         GLshort oy = y;
@@ -353,6 +356,33 @@ namespace ms {
         }
 
         return true;
+    }
+
+    void GraphicsGL::ensure_glyph(Text::Font id,uint32_t codepoint) {
+        auto &font=fonts_[id];if(codepoint<256 || font.unicode.count(codepoint))return;
+        if(codepoint>0x10ffff || (codepoint>=0xd800 && codepoint<=0xdfff)) {font.unicode.emplace(codepoint,font.chars['?']);return;}
+        FT_Face face=font.face;
+        if(!face || !FT_Get_Char_Index(face,codepoint)) {
+            if(!font.fallback) {
+                for(const char *path:{"/system/fonts/NotoSansCJK-Regular.ttc","/system/fonts/NotoSansCJK-Regular.otf","/system/fonts/NotoSansSC-Regular.otf","/system/fonts/DroidSansFallback.ttf"}) {
+                    if(!FT_New_Face(ft_library_,path,0,&font.fallback)) {FT_Set_Pixel_Sizes(font.fallback,0,font.pixel_height);break;}
+                }
+            }
+            face=font.fallback;
+        }
+        if(!face || !FT_Get_Char_Index(face,codepoint) || FT_Load_Char(face,codepoint,FT_LOAD_RENDER)) {font.unicode.emplace(codepoint,font.chars['?']);return;}
+        const auto g=face->glyph;const int w=g->bitmap.width,h=g->bitmap.rows;
+        if(glyph_x_+w+1>=ATLASW) {glyph_x_=0;glyph_y_+=glyph_row_+1;glyph_row_=0;}
+        if(glyph_y_+h+1>=font_ymax) {font.unicode.emplace(codepoint,font.chars['?']);return;}
+        std::vector<uint8_t> pixels(w*h*4);
+        for(int y=0;y<h;++y)for(int x=0;x<w;++x) {
+            const auto value=g->bitmap.buffer[y*g->bitmap.pitch+x];const size_t index=(y*w+x)*4;
+            pixels[index]=pixels[index+1]=pixels[index+2]=value;pixels[index+3]=255;
+        }
+        glBindTexture(GL_TEXTURE_2D,atlas_);glPixelStorei(GL_UNPACK_ALIGNMENT,1);
+        if(w && h)glTexSubImage2D(GL_TEXTURE_2D,0,glyph_x_,glyph_y_,w,h,GL_RGBA,GL_UNSIGNED_BYTE,pixels.data());
+        font.unicode.emplace(codepoint,Font::Char{static_cast<GLshort>(g->advance.x>>6),static_cast<GLshort>(g->advance.y>>6),static_cast<GLshort>(w),static_cast<GLshort>(h),static_cast<GLshort>(g->bitmap_left),static_cast<GLshort>(g->bitmap_top),Offset(glyph_x_,glyph_y_,w,h)});
+        glyph_x_+=w+1;glyph_row_=std::max<GLshort>(glyph_row_,h);
     }
 
     void GraphicsGL::reinit() {
@@ -627,6 +657,7 @@ namespace ms {
             return Text::Layout();
         }
 
+        for(uint32_t codepoint:text_as_values)ensure_glyph(id,codepoint);
         LayoutBuilder builder(fonts_[id], alignment, maxwidth, formatted, line_adj);
 
         const auto *p_text = text_as_values.data();
@@ -736,9 +767,9 @@ namespace ms {
                     continue;
                 }
 
-                wordwidth += font_.chars[c].ax;
+                wordwidth += font_.glyph(c).ax;
 
-                if (wordwidth > max_width_) {
+                if (wordwidth > max_width_ && i>first) {
                     if (last - first == 1) {
                         return last;
                     }
@@ -770,7 +801,7 @@ namespace ms {
 
         for (size_t pos = first; pos < last; pos++) {
             auto c = text[pos];
-            const Font::Char &ch = font_.chars[c];
+            const Font::Char &ch = font_.glyph(c);
 
             advances_.push_back(ax_);
 
@@ -866,7 +897,7 @@ namespace ms {
 //     if (!linebreak) {
 //         for (size_t i = first; i < last; i++) {
 //             auto c = text[i];
-//             wordwidth += font_.chars[c].ax;
+//             wordwidth += font_.glyph(c).ax;
 
 //             if (wordwidth > max_width_) {
 //                 if (last - first == 1) {
@@ -900,7 +931,7 @@ namespace ms {
 
 //     for (size_t pos = first; pos < last; pos++) {
 //         auto c = text[pos];
-//         const Font::Char &ch = font_.chars[c];
+//         const Font::Char &ch = font_.glyph(c);
 
 //         advances_.push_back(ax_);
 
@@ -1041,7 +1072,7 @@ namespace ms {
 
 //             for (size_t pos = word.first; pos < word.last; ++pos) {
 //                 auto c = static_cast<unsigned char>(text[pos]);
-//                 const Font::Char &ch = font.chars[c];
+//                 const Font::Char &ch = font.glyph(c);
 
 //                 GLshort char_x = x + ax + ch.bl;
 //                 GLshort char_y = y + ay - ch.bt;
@@ -1171,7 +1202,7 @@ namespace ms {
 
                 for (size_t pos = word.first; pos < word.last; ++pos) {
                     auto c = text[pos];
-                    const Font::Char &ch = font.chars[c];
+                    const Font::Char &ch = font.glyph(c);
 
                     GLshort char_x = x + ax + ch.bl;
                     GLshort char_y = y + ay - ch.bt;

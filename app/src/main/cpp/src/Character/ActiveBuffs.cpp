@@ -27,10 +27,10 @@ void PercentageStatBuff<STAT>::apply_to(CharStats &stats, int16_t value) const {
 }
 
 void MapleWarriorBuff::apply_to(CharStats &stats, int16_t value) const {
-    stats.add_percent(EquipStat::Id::STR, static_cast<float>(value) / 100);
-    stats.add_percent(EquipStat::Id::DEX, static_cast<float>(value) / 100);
-    stats.add_percent(EquipStat::Id::INT, static_cast<float>(value) / 100);
-    stats.add_percent(EquipStat::Id::LUK, static_cast<float>(value) / 100);
+    stats.add_value(EquipStat::STR,stats.get_stat(MapleStat::STR)*value/100);
+    stats.add_value(EquipStat::DEX,stats.get_stat(MapleStat::DEX)*value/100);
+    stats.add_value(EquipStat::INT,stats.get_stat(MapleStat::INT)*value/100);
+    stats.add_value(EquipStat::LUK,stats.get_stat(MapleStat::LUK)*value/100);
 }
 
 void StanceBuff::apply_to(CharStats &stats, int16_t value) const {
@@ -38,13 +38,18 @@ void StanceBuff::apply_to(CharStats &stats, int16_t value) const {
 }
 
 void BoosterBuff::apply_to(CharStats &stats, int16_t value) const {
-    stats.set_attackspeed(static_cast<int8_t>(value));
+    stats.set_attackspeed(stats.get_attackspeed()+static_cast<int8_t>(value));
 }
 
 ActiveBuffs::ActiveBuffs() {
     buffs_[Buffstat::Id::MAPLE_WARRIOR] = std::make_unique<MapleWarriorBuff>();
     buffs_[Buffstat::Id::STANCE] = std::make_unique<StanceBuff>();
+    buffs_[Buffstat::Id::ACC] = std::make_unique<SimpleStatBuff<EquipStat::ACC>>();
+    buffs_[Buffstat::Id::AVOID] = std::make_unique<SimpleStatBuff<EquipStat::AVOID>>();
     buffs_[Buffstat::Id::BOOSTER] = std::make_unique<BoosterBuff>();
+    buffs_[Buffstat::SPEED_INFUSION] = std::make_unique<BoosterBuff>();
+    buffs_[Buffstat::DASH2] = std::make_unique<SimpleStatBuff<EquipStat::SPEED>>();
+    buffs_[Buffstat::DASH] = std::make_unique<SimpleStatBuff<EquipStat::JUMP>>();
     buffs_[Buffstat::Id::WATK] =
         std::make_unique<SimpleStatBuff<EquipStat::Id::WATK>>();
     buffs_[Buffstat::Id::WDEF] =

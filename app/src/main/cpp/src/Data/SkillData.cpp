@@ -14,17 +14,19 @@
 //	You should have received a copy of the GNU Affero General Public License
 //	along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "SkillData.h"
+#include "../Character/AranSkills.h"
 
 #include <nlnx/nx.hpp>
 
 #include "../Character/SkillId.h"
+#include "../Character/AdventurerSkills.h"
 #include "StringHandling.h"
 
 namespace ms {
 SkillData::SkillData(int32_t id) {
     /// Locate sources
     std::string strid = string_format::extend_id(id, 7);
-    std::string jobid = strid.substr(0, 3);
+    std::string jobid = strid.substr(0, strid.size() - 4);
     nl::node src = nl::nx::skill[jobid + ".img"]["skill"][strid];
     nl::node strsrc = nl::nx::string["Skill.img"][strid];
 
@@ -44,7 +46,7 @@ SkillData::SkillData(int32_t id) {
     nl::node levelsrc = src["level"];
 
     for (const auto &sub : levelsrc) {
-        float damage = (float)sub["damage"] / 100;
+        float damage = sub["damage"].get_integer(100) / 100.0f;
         int32_t matk = sub["mad"];
         int32_t fixdamage = sub["fixdamage"];
         int32_t mastery = sub["mastery"];
@@ -91,6 +93,9 @@ SkillData::SkillData(int32_t id) {
 
     master_level_ = static_cast<int32_t>(stats_.size());
     passive_ = (id % 10000) / 1000 == 0;
+    if (id == 21100005 || id == 21120007 || id == 21100002 || id == 21100004
+        || id == 21110003 || id == 21110004 || id == 21110006 || id == 21120005 || id == 21120006) passive_ = false;
+    if (adventurer::kind(id)!=adventurer::Kind::Unknown) passive_=adventurer::kind(id)==adventurer::Kind::Passive;
     flags_ = flags_of(id);
     invisible_ = src["invisible"].get_bool();
 
@@ -107,7 +112,10 @@ SkillData::SkillData(int32_t id) {
 }
 
 int32_t SkillData::flags_of(int32_t id) const {
+    if (aran::attack(id) || adventurer::attack(id) || adventurer::final_attack(id) || id==5210000 || id==5220011 || adventurer::mortal_blow(id)) return ATTACK;
+    if (adventurer::kind(id)!=adventurer::Kind::Unknown) return NONE;
     static const std::unordered_map<int32_t, int32_t> skill_flags = {
+        { 21000002, ATTACK }, // Aran Double Swing is passive in the skill book, but its chained action is an attack.
         // Beginner
         { SkillId::THREE_SNAILS, ATTACK },
         // Warrior
@@ -172,7 +180,7 @@ bool SkillData::is_passive() const {
 }
 
 bool SkillData::is_attack() const {
-    return !passive_ && (flags_ & ATTACK);
+    return (flags_ & ATTACK) != 0;
 }
 
 bool SkillData::is_invisible() const {

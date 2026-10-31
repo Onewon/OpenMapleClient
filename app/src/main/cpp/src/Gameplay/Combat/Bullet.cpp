@@ -67,6 +67,6 @@ bool Bullet::update(Point<int16_t> target) {
     move_obj_.move();
 
     int16_t xdelta = target.x() - move_obj_.get_x();
-    return move_obj_.hspeed > 0.0 ? xdelta < 10 : xdelta > 10;
+    return move_obj_.hspeed > 0.0 ? xdelta <= 10 : xdelta >= -10;
 }
 }  // namespace ms

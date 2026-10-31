@@ -42,7 +42,7 @@ public:
     }
 
 private:
-    using clock = std::chrono::high_resolution_clock;
+    using clock = std::chrono::steady_clock;
 
     clock::time_point point;
 };

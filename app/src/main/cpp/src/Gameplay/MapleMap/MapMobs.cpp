@@ -116,10 +116,11 @@ void MapMobs::apply_damage(int32_t oid,
                            const AttackUser &user,
                            const SpecialMove &move) {
     if (auto mob = mobs_.get<Mob>(oid)) {
-        mob->get().apply_damage(damage, toleft);
+        if (move.get_id()==21110006) toleft=mob->get().get_position().x()<user.origin.x();
+        mob->get().apply_damage(damage, toleft, move.get_id(), user.knockback_ratio, user.skill_level);
 
         // TODO: Maybe move this into the method above too?
-        move.apply_hiteffects(user, *mob);
+        if(move.get_id()!=4211006) move.apply_hiteffects(user, *mob);
     }
 }
 

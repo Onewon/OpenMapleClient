@@ -73,7 +73,7 @@ size_t Cryptography::check_length(const int8_t *bytes) const {
         headermask |= static_cast<uint8_t>(bytes[i]) << (8 * i);
     }
 
-    return static_cast<int16_t>((headermask >> 16) ^ (headermask & 0xFFFF));
+    return static_cast<uint16_t>((headermask >> 16) ^ (headermask & 0xFFFF));
 #else
     size_t length = 0;
 

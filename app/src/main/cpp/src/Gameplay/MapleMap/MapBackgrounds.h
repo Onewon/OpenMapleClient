@@ -43,6 +43,7 @@ private:
     }
 
     void settype(Type type);
+    Type type_ = NORMAL;
 
     int16_t VWIDTH;
     int16_t VHEIGHT;

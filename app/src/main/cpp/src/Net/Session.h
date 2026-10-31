@@ -50,9 +50,8 @@ public:
     // Check if the connection is alive
     bool is_connected() const;
 
-    std::string readHostIP(GLFMDisplay* pApp);
-
 private:
+    std::string readConnectionValue(GLFMDisplay *pApp, const char *filename);
     bool init(const char *host, const char *port);
     void process(const int8_t *bytes, size_t available);
 
@@ -62,7 +61,11 @@ private:
     int8_t buffer_[MAX_PACKET_LENGTH];
     size_t length_;
     size_t pos_;
+    int8_t header_[HEADER_LENGTH];
+    size_t header_pos_ = 0;
+    uint64_t connection_generation_ = 0;
     bool is_connected_;
+    std::string channel_host_;
 
 #ifdef USE_ASIO
     SocketAsio socket_;

@@ -28,6 +28,11 @@ UIMobileInput::UIMobileInput() : joystick_(Point<int16_t>(90, 490), 58) {
 
 void UIMobileInput::draw() const {
     if (UI::get().get_state_type() != typeid(UIStateGame)) return;
+    const int combo=Stage::get().get_combat().get_combo();
+    if(combo>0) {
+        Text text(Text::Font::A13M,Text::Alignment::LEFT,Color::Name::YELLOW,"COMBO "+std::to_string(combo));
+        text.draw(Point<int16_t>(layout_width_-300,layout_height_-300));
+    }
     joystick_.draw();
     for (const auto &entry : touch_buttons_) entry.second->draw();
 }

@@ -15,6 +15,7 @@
 //	along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "Game.h"
 #include <iostream>
+#include <android/log.h>
 
 
 #include "Constants.h"
@@ -28,6 +29,7 @@
 #include "Util/NxFiles.h"
 #include "ScreenResolution.h"
 #include "Singleton.h"
+#include "DisplayModes.h"
 
 namespace ms {
 Game::Game() {
@@ -36,27 +38,37 @@ Game::Game() {
 }
 
 Error Game::init(GLFMDisplay *pApp) {
+    const auto *activity = static_cast<ANativeActivity *>(glfmGetAndroidActivity(pApp));
+    Configuration::get().set_path(std::string(activity->internalDataPath) + "/Settings");
+    const auto width = Setting<Width>::get().load();
+    const auto height = Setting<Height>::get().load();
+    bool valid_mode = false;
+    for (const auto &mode : DISPLAY_MODES) valid_mode |= mode.width == width && mode.height == height;
+    if (!valid_mode) {
+        Setting<Width>::get().save(1366);
+        Setting<Height>::get().save(768);
+    }
     if (Error error = PacketProcessor::get().init(pApp)) {
         return error;
     }
-    std::cout << "Session init success." << std::endl;
+    __android_log_print(ANDROID_LOG_INFO, "OpenMapleClient", "Session initialized");
     if (Error error = NxFiles::init(pApp)) {
         return error;
     }
-    std::cout << "NxFiles init success." << std::endl;
+    __android_log_print(ANDROID_LOG_INFO, "OpenMapleClient", "NX resources initialized");
 
     if (Error error = Window::get().init(pApp)) {
         return error;
     }
-    std::cout << "Window init success." << std::endl;
+    __android_log_print(ANDROID_LOG_INFO, "OpenMapleClient", "Window initialized");
     if (Error error = Music::init()) {
         return error;
     }
-    std::cout << "Music init success." << std::endl;
+    __android_log_print(ANDROID_LOG_INFO, "OpenMapleClient", "Music initialized");
     if (Error error = Sound::init()) {
         return error;
     }
-    std::cout << "Sound init success." << std::endl;
+    __android_log_print(ANDROID_LOG_INFO, "OpenMapleClient", "Sound initialized");
 
     return Error::NONE;
 }
@@ -111,6 +123,8 @@ void Game::start(GLFMDisplay *pApp) {
         auto message = error.get_message();
         auto details = error.get_details();
         bool can_retry = error.can_retry();
+        __android_log_print(ANDROID_LOG_ERROR, "OpenMapleClient", "Initialization failed: %.*s (%.*s)",
+            static_cast<int>(message.size()), message.data(), static_cast<int>(details.size()), details.data());
 
         std::cout << "Error: " << message << std::endl;
         std::cout << "Message: " << details << std::endl;

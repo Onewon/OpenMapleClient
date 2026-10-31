@@ -55,7 +55,7 @@ void CharStats::init_totalstats() {
     attack_speed_ = 0;
     projectile_range_ = 400;
     mastery_ = 0.0f;
-    critical_ = 0.05f;
+    critical_ = 0.0f;
     min_crit_ = 0.5f;
     max_crit_ = 0.75f;
     damage_percent_ = 0.0f;
@@ -79,7 +79,7 @@ void CharStats::close_totalstats() {
     int32_t primary = get_primary_stat();
     int32_t secondary = get_secondary_stat();
     int32_t attack = get_total(EquipStat::Id::WATK);
-    float multiplier = damage_percent_ + static_cast<float>(attack) / 100;
+    float multiplier = (1.0f + damage_percent_) * static_cast<float>(attack) / 100;
     max_damage_ = static_cast<int32_t>((primary + secondary) * multiplier);
     min_damage_ = static_cast<int32_t>(((primary * 0.9f * mastery_) + secondary)
                                        * multiplier);
@@ -188,17 +188,10 @@ void CharStats::change_job(uint16_t id) {
     job_.change_job(id);
 }
 
-int32_t CharStats::calculate_damage(int32_t mobatk) const {
-    // TODO: Random stuff, need to find the actual formula somewhere.
-    auto weapon_def = get_total(EquipStat::Id::WDEF);
-
-    if (weapon_def == 0) {
-        return mobatk;
-    }
-
-    int32_t reduceatk = mobatk / 2 + mobatk / weapon_def;
-
-    return reduceatk - static_cast<int32_t>(reduceatk * reduce_damage_);
+int32_t CharStats::calculate_damage(int32_t mobatk,bool apply_reduction) const {
+    const auto defense=get_total(EquipStat::WDEF);
+    const int32_t raw=defense>0?mobatk/2+mobatk/defense:mobatk;
+    return apply_reduction?raw-static_cast<int32_t>(raw*reduce_damage_):raw;
 }
 
 bool CharStats::is_damage_buffed() const {

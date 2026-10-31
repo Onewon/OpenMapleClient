@@ -21,8 +21,11 @@
 #include "../MapleMap/MapMobs.h"
 #include "../MapleMap/MapReactors.h"
 #include "RegularAttack.h"
+#include "../../Util/Randomizer.h"
+#include <chrono>
 
 namespace ms {
+class InPacket;
 class Combat {
 public:
     Combat(Player &player,
@@ -38,6 +41,17 @@ public:
 
     // Make the player use a special move
     void use_move(int32_t move_id);
+    void skill_input(int32_t id, bool down);
+    void clear_inputs();
+    void use_meso_explosion(const SpecialMove &move);
+    void handle_summon(int opcode, InPacket &recv);
+    void clear_summons();
+    void handle_area(int opcode, InPacket &recv);
+    bool use_door(Point<int16_t> position);
+    void direction(int32_t action, bool down);
+    void body_pressure(int32_t oid);
+    void set_combo(int32_t count);
+    int32_t get_combo() const;
 
     // Add an attack to the attack queue.
     void push_attack(const AttackResult &attack);
@@ -59,6 +73,27 @@ public:
     void show_player_disease(int32_t skillid, int8_t level);
 
 private:
+    struct AreaState {
+        int32_t skill=0,owner=0;
+        Rectangle<int16_t> bounds;
+        Point<int16_t> position;
+        Animation animation;
+        bool door=false,town=false;
+    };
+    std::unordered_map<int32_t,AreaState> areas_;
+    std::chrono::steady_clock::time_point door_next_{};
+    struct MesoVisual {Point<int16_t> position;Animation animation;std::chrono::steady_clock::time_point ready;};
+    std::list<MesoVisual> meso_visuals_;
+    struct SummonState {
+        int32_t owner=0,oid=0,skill=0,level=0;
+        uint8_t movement=0;bool can_attack=false,left=false,attacking=false;
+        Point<int16_t> position;
+        Animation idle,attack;
+        std::chrono::steady_clock::time_point next_attack{},next_move{},next_hurt{};
+    };
+    void update_summons();
+    void draw_summons(double x,double y,float alpha) const;
+    std::unordered_map<int32_t,SummonState> summons_;
     struct DamageEffect {
         AttackUser user;
         DamageNumber number;
@@ -112,6 +147,17 @@ private:
 
     std::unordered_map<int32_t, Skill> skills_;
     RegularAttack regular_attack_;
+    Randomizer randomizer_;
+    bool aran_chain_ready_=false, aran_attack_buffered_=false;
+    int aran_chain_stage_=0;
+    Animation charge_effect_;
+    int32_t held_skill_=0, charged_skill_=0, charge_ms_=0, final_attack_=0;
+    std::chrono::steady_clock::time_point held_next_{},charge_start_{};
+    int32_t aran_combo_=0, aran_buffered_move_=0;
+    int32_t aran_last_direction_=0, aran_previous_direction_=0;
+    std::chrono::steady_clock::time_point aran_direction_time_{}, aran_combo_time_{};
+    int32_t aran_chain_map_=-1;
+    std::chrono::steady_clock::time_point aran_chain_deadline_{};
 
     TimedQueue<AttackResult> attack_results_;
     TimedQueue<BulletEffect> bullet_effects_;

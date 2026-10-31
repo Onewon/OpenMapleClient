@@ -50,6 +50,8 @@ protected:
 // Notifies the client that a buff was applied to the player
 // Opcode: GIVE_BUFF(32)
 class ApplyBuffHandler : public BuffHandler {
+public:
+    void handle(InPacket &recv) const override;
 protected:
     void handle_buff(InPacket &recv, Buffstat::Id stat) const override;
 };
@@ -103,6 +105,10 @@ class AddCooldownHandler : public PacketHandler {
 
 // Parses key mappings and sends them to the keyboard
 // Opcode: KEYMAP(335)
+class ShowComboHandler : public PacketHandler {
+    void handle(InPacket &recv) const override;
+};
+
 class KeymapHandler : public PacketHandler {
     void handle(InPacket &recv) const override;
 };

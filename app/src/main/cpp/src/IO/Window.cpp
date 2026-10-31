@@ -18,6 +18,7 @@
 #include "../Constants.h"
 #include "../Graphics/GraphicsGL.h"
 #include "../Timer.h"
+#include "../Util/FixedStep.h"
 #include "UI.h"
 #include "stb/stb_image.h"
 #include "GLES3/gl32.h"
@@ -161,7 +162,11 @@ namespace ms {
         UI::get().send_cursor(pos);
     }
 
+    FixedStep frame_step(Constants::TIMESTEP * 1000);
+
     void focus_callback(GLFMDisplay *display, bool focused) {
+        frame_step.reset();
+        Timer::get().start();
         UI::get().send_focus(focused);
     }
 
@@ -195,21 +200,16 @@ namespace ms {
             Stage::get().init();
             UI::get().init();
             Timer::get().start();
+            frame_step.reset();
 
         }
         Window::get().refresh_viewport();
-        const int64_t timestep = Constants::TIMESTEP * 1000;
-        int64_t accumulator = timestep;
+        const int64_t elapsed = Timer::get().stop();
         if (game.is_running()) {
-            int64_t elapsed = Timer::get().stop();
-
-            // Update game with constant timestep as many times as possible.
-            for (accumulator += elapsed; accumulator >= timestep;
-                 accumulator -= timestep) {
-                game.update();
-            }
-            float alpha = static_cast<float>(accumulator) / timestep;
+            const float alpha = frame_step.advance(elapsed, [] { game.update(); });
             game.draw(alpha);
+        } else {
+            frame_step.reset();
         }
     }
 

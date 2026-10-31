@@ -59,7 +59,7 @@ void Gauge::draw(const DrawArgument &args) const {
             bar_front_.draw(args
                             + DrawArgument(Point<int16_t>(0, 0),
                                            Point<int16_t>(length, 0)));
-            bar_mid_.draw(args);
+            bar_mid_.draw(args + DrawArgument(Point<int16_t>(0, 0), Point<int16_t>(cover_width_, 0)));
             bar_end_.draw(args + Point<int16_t>(length + 8, 20));
         } else if (type_ == Type::CASHSHOP) {
             Point<int16_t> pos_adj = Point<int16_t>(45, 1);

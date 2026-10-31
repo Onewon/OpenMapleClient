@@ -21,6 +21,7 @@
 #include "../Gameplay/Physics/Physics.h"
 #include "../Gameplay/Playable.h"
 #include "ActiveBuffs.h"
+#include "SkillCooldowns.h"
 #include "Inventory/Inventory.h"
 #include "MonsterBook.h"
 #include "PassiveBuffs.h"
@@ -79,6 +80,8 @@ public:
 
     // Execute a rush movement
     void rush(double targetx);
+    void combat_step();
+    void skill_movement(int32_t id, const Physics &physics);
 
     // Check whether the player is invincible
     bool is_invincible() const override;
@@ -94,6 +97,8 @@ public:
 
     // Return whether the buff is active.
     bool has_buff(Buffstat::Id stat) const;
+    int32_t combo_orbs() const {return std::max(0,buffs_[Buffstat::COMBO].value-1);}
+    int32_t homing_target() const {return buffs_[Buffstat::HOMING_BEACON].value;}
 
     // Change a skill
     void change_skill(int32_t skill_id,
@@ -197,7 +202,9 @@ private:
     ActiveBuffs active_buffs_;
     PassiveBuffs passive_buffs_;
 
-    std::unordered_map<int32_t, int32_t> cooldowns_;
+    SkillCooldowns cooldowns_;
+    std::chrono::steady_clock::time_point recovery_at_{};
+    bool flash_jumped_=false;
 
     std::map<KeyAction::Id, bool> keys_down_;
 

@@ -14,6 +14,7 @@
 //	You should have received a copy of the GNU Affero General Public License
 //	along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "UIStateCashShop.h"
+#include "UI.h"
 
 #include "UITypes/UICashShop.h"
 
@@ -22,6 +23,13 @@ UIStateCashShop::UIStateCashShop() {
     focused_ = UIElement::NONE;
 
     emplace<UICashShop>();
+}
+
+void UIStateCashShop::send_close() {
+    if(auto shop=UI::get().get_element<UICashShop>()) shop->get().request_exit();
+}
+void UIStateCashShop::send_key(KeyType::Id, int32_t, bool pressed, bool escape) {
+    if(pressed && escape) send_close();
 }
 
 void UIStateCashShop::draw(float inter, Point<int16_t> cursor) const {

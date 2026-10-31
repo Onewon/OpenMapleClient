@@ -34,6 +34,7 @@ public:
 
     void draw(const DrawArgument &args) const;
     void update(float target);
+    void set_cover_width(int16_t width) { cover_width_ = width; }
 
 private:
     Type type_;
@@ -42,6 +43,7 @@ private:
     Texture bar_mid_;
     Texture bar_end_;
     int16_t maximum_;
+    int16_t cover_width_ = 0;
 
     float percentage_;
     float target_;

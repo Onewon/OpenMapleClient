@@ -49,6 +49,9 @@ public:
     using Loot = std::pair<int32_t, Point<int16_t>>;
 
     Loot find_loot_at(Point<int16_t> playerpos);
+    struct Meso {int32_t oid,amount;Point<int16_t> position;};
+    std::vector<Meso> select_mesos(int32_t owner,Rectangle<int16_t> bounds,Point<int16_t> origin,size_t limit);
+
 
 private:
     MapObjects drops_;

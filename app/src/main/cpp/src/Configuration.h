@@ -39,6 +39,7 @@ public:
 
     // Save the current settings.
     void save() const;
+    void set_path(std::string path) { FILENAME = std::move(path); load(); }
 
     // Get private member SHOW_FPS
     bool get_show_fps() const;
@@ -239,7 +240,7 @@ private:
     template<typename T>
     friend struct Setting;
 
-    const char *FILENAME = "Settings";
+    std::string FILENAME = "Settings";
     const char *TITLE = "msclient";
     const char *VERSION = "0.4.0";
     const char *JOINLINK = "https://www.nexon.com/account/en/create";

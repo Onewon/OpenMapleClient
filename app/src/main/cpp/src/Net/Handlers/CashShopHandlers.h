@@ -18,6 +18,12 @@
 #include "../PacketHandler.h"
 
 namespace ms {
+class CashQueryHandler : public PacketHandler {
+public: void handle(InPacket& recv) const override;
+};
+class CashOperationHandler : public PacketHandler {
+public: void handle(InPacket& recv) const override;
+};
 // Handler for entering the Cash Shop
 class SetCashShopHandler : public PacketHandler {
 public:

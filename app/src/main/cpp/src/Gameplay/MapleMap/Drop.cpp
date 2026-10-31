@@ -102,7 +102,7 @@ int8_t Drop::update(const Physics &physics) {
 void Drop::expire(int8_t type, const PhysicsObject *lt) {
     switch (type) {
         case 0: state_ = Drop::State::PICKED_UP; break;
-        case 1: deactivate(); break;
+        case 1:case 4: deactivate(); break;
         case 2:
             angle_.set(0.0f);
             state_ = Drop::State::PICKED_UP;

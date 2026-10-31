@@ -91,6 +91,9 @@ void Stage::load_player(const CharEntry &entry,
 
 void Stage::clear() {
     state_ = State::INACTIVE;
+    combat_.set_combo(0);
+    combat_.clear_inputs();
+    combat_.clear_summons();
 
     chars_.clear();
     npcs_.clear();
@@ -118,6 +121,10 @@ void Stage::load_map(int32_t mapid) {
     portals_ = MapPortals(src["portal"], mapid);
 }
 
+void Stage::place_player(Point<int16_t> position) {
+    player_.respawn(position,map_info_.is_underwater());
+    camera_.set_position(position);
+}
 void Stage::respawn(int8_t portalid) {
     Music(map_info_.get_bgm()).play();
 
@@ -186,6 +193,7 @@ void Stage::update() {
         if (MobAttack attack = mobs_.create_attack(oid_id)) {
             MobAttackResult result = player_.damage(attack);
             fn_take_damage(result, TakeDamagePacket::From::TOUCH);
+            combat_.body_pressure(oid_id);
         }
     }
 }
@@ -202,6 +210,7 @@ void Stage::check_portals() {
     }
 
     Point<int16_t> playerpos = player_.get_position();
+    if(combat_.use_door(playerpos)) return;
     Portal::WarpInfo warpinfo = portals_.find_warp_at(playerpos);
 
     if (warpinfo.intramap) {
@@ -255,6 +264,7 @@ void Stage::send_key(KeyType::Id type, int32_t action, bool down) {
 
     switch (type) {
         case KeyType::Id::ACTION:
+            combat_.direction(action, down);
             if (down) {
                 switch (action) {
                     case KeyAction::Id::UP:
@@ -271,7 +281,7 @@ void Stage::send_key(KeyType::Id type, int32_t action, bool down) {
             playable_->get().send_action(KeyAction::get_action_by_id(action),
                                          down);
             break;
-        case KeyType::Id::SKILL: combat_.use_move(action); break;
+        case KeyType::Id::SKILL: combat_.skill_input(action,down); break;
         case KeyType::Id::ITEM: player_.use_item(action); break;
         case KeyType::Id::FACE: player_.set_expression(action); break;
     }

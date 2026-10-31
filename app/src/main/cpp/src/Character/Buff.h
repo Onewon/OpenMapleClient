@@ -97,6 +97,7 @@ enum Id {
 };
 
 bool is_disease(Id buff_id);
+constexpr bool matches(uint64_t bits,uint64_t mask) {return mask && !(mask&(mask-1)) && (bits&mask);}
 
 extern const std::unordered_map<Id, uint64_t> first_codes;
 extern const std::unordered_map<Id, uint64_t> second_codes;
@@ -105,12 +106,12 @@ extern const std::unordered_map<Id, uint64_t> diseases;
 
 struct Buff {
     Buffstat::Id stat;
-    int16_t value;
+    int32_t value;
     int32_t skillid;
     int32_t duration;
 
     constexpr Buff(Buffstat::Id stat,
-                   int16_t value,
+                   int32_t value,
                    int32_t skillid,
                    int32_t duration) :
         stat(stat),

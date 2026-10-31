@@ -1,3 +1,4 @@
+#include "../MonsterStatus.h"
 //	This file is part of the continued Journey MMORPG client
 //	Copyright (C) 2015-2019  Daniel Allendorf, Ryan Payton
 //
@@ -373,37 +374,17 @@ void MobMoveResponseHandler::handle(InPacket &recv) const {
 }
 
 void ApplyMobStatusHandler::handle(InPacket &recv) const {
-    int32_t oid = recv.read_int();
-
-    recv.read_long();
-
-    int32_t first_mask = recv.read_int();
-    int32_t second_mask = recv.read_int();
-
-    // and some more ...
-
-    std::cerr << std::endl
-              << "Opcode [242] Error: Handler exists but is not implemented."
-              << std::endl;
+    const int32_t oid=recv.read_int();recv.skip(8);
+    const auto first=static_cast<uint32_t>(recv.read_int());const auto second=static_cast<uint32_t>(recv.read_int());
+    const auto entries=decode_monster_status(recv,first,second);
+    if(auto mob=Stage::get().get_mobs().get_mobs()->get<Mob>(oid))
+        for(const auto &entry:entries) mob->get().set_status(entry.mask,entry.value,entry.source);
 }
-
 void CancelMobStatusHandler::handle(InPacket &recv) const {
-    int32_t oid = recv.read_int();
-
-    recv.read_long();
-
-    int32_t first_mask = recv.read_int();
-    int32_t second_mask = recv.read_int();
-
-    recv.read_int();
-
-    if (auto mob = Stage::get().get_mobs().get_mobs()->get<Mob>(oid)) {
-        mob->get().cancel_buff(12345);  // TODO
-    }
-
-    std::cerr << std::endl
-              << "Opcode [243] Error: Handler exists but is not implemented."
-              << std::endl;
+    const int32_t oid=recv.read_int();recv.skip(8);
+    const auto first=static_cast<uint32_t>(recv.read_int());const auto second=static_cast<uint32_t>(recv.read_int());
+    recv.skip(4);
+    if(auto mob=Stage::get().get_mobs().get_mobs()->get<Mob>(oid)) mob->get().remove_status((static_cast<uint64_t>(first)<<32)|second);
 }
 
 void ShowMobHpHandler::handle(InPacket &recv) const {
@@ -524,7 +505,7 @@ void RemoveLootHandler::handle(InPacket &recv) const {
         Sound(Sound::Name::PICKUP).play();
     }
 
-    Stage::get().get_drops().remove(oid, mode, &looter->get());
+    Stage::get().get_drops().remove(oid, mode, looter ? &looter->get() : nullptr);
 }
 
 void HitReactorHandler::handle(InPacket &recv) const {

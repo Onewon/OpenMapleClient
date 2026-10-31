@@ -14,6 +14,7 @@
 //	You should have received a copy of the GNU Affero General Public License
 //	along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "UISkillBook.h"
+#include "../../Character/AranSkills.h"
 
 #include <nlnx/nx.hpp>
 
@@ -450,7 +451,7 @@ void UISkillBook::doubleclick(Point<int16_t> cursorpos) {
         int32_t skill_id = skill->get_id();
         int32_t skill_level = skillbook_.get_level(skill_id);
 
-        if (skill_level > 0) {
+        if (skill_level > 0 && !SkillData::get(skill_id).is_passive()) {
             Stage::get().get_combat().use_move(skill_id);
         }
     }
@@ -608,9 +609,9 @@ void UISkillBook::change_sp() {
         for (size_t i = 0; i < skills_.size(); i++) {
             int32_t skillid = skills_[i].get_id();
 
-            if (skillid == SkillId::Id::THREE_SNAILS
-                || skillid == SkillId::Id::HEAL
-                || skillid == SkillId::Id::FEATHER) {
+            if (skillid % 10000000 == SkillId::Id::THREE_SNAILS
+                || skillid % 10000000 == SkillId::Id::HEAL
+                || skillid % 10000000 == SkillId::Id::FEATHER) {
                 remaining_beginner_sp -= skills_[i].get_level();
             }
         }
@@ -643,6 +644,7 @@ void UISkillBook::change_tab(uint16_t new_tab) {
     book_text_.change_text(data.get_name());
 
     for (int skill_id : data.get_skills()) {
+        if (!job_.can_use(skill_id) || aran::hidden(skill_id)) continue;
         int32_t level = skillbook_.get_level(skill_id);
         int32_t masterlevel = skillbook_.get_masterlevel(skill_id);
 
@@ -767,6 +769,7 @@ void UISkillBook::send_spup(uint16_t row) {
 }
 
 void UISkillBook::spend_sp(int32_t skill_id) {
+    if (!job_.can_use(skill_id)) return;
     fn_spend_sp(skill_id);
 
     UI::get().disable();

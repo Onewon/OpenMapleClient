@@ -51,13 +51,13 @@ bool WeaponMasteryBuff<W...>::is_applicable(CharStats &stats,
 
 template<Weapon::Type... W>
 void WeaponMasteryBuff<W...>::apply_to(CharStats &stats, nl::node level) const {
-    float mastery = static_cast<float>(level["mastery"]) / 100;
-    stats.set_mastery(mastery);
+    float mastery = 0.1f + 0.05f * level["mastery"].get_integer();
+    stats.set_mastery_total(mastery);
     stats.add_value(EquipStat::Id::ACC, level["x"]);
 }
 
 void AchillesBuff::apply_to(CharStats &stats, nl::node level) const {
-    float reducedamage = static_cast<float>(level["x"]) / 1000;
+    float reducedamage = 1.0f - level["x"].get_integer(1000) / 1000.0f;
     stats.set_reducedamage(reducedamage);
 }
 
@@ -85,13 +85,19 @@ PassiveBuffs::PassiveBuffs() {
     buffs_[SkillId::Id::AXE_MASTERY] = std::make_unique<
         WeaponMasteryBuff<Weapon::Type::AXE_1H, Weapon::Type::AXE_2H>>();
 
+    buffs_[3100000] = std::make_unique<WeaponMasteryBuff<Weapon::BOW>>();
+    buffs_[3200000] = std::make_unique<WeaponMasteryBuff<Weapon::CROSSBOW>>();
+    buffs_[4100000] = std::make_unique<WeaponMasteryBuff<Weapon::CLAW>>();
+    buffs_[4200000] = std::make_unique<WeaponMasteryBuff<Weapon::DAGGER>>();
+    buffs_[5100001] = std::make_unique<WeaponMasteryBuff<Weapon::KNUCKLE>>();
+    buffs_[5200000] = std::make_unique<WeaponMasteryBuff<Weapon::GUN>>();
     // Crusader
 
     // Hero
     buffs_[SkillId::Id::ACHILLES_HERO] = std::make_unique<AchillesBuff>();
 
     // Page
-    buffs_[SkillId::Id::SWORD_MASTERY_FIGHTER] = std::make_unique<
+    buffs_[1200000] = std::make_unique<
         WeaponMasteryBuff<Weapon::Type::SWORD_1H, Weapon::Type::SWORD_2H>>();
     buffs_[SkillId::Id::BW_MASTERY] = std::make_unique<
         WeaponMasteryBuff<Weapon::Type::MACE_1H, Weapon::Type::MACE_2H>>();
@@ -137,7 +143,7 @@ void PassiveBuffs::apply_buff(CharStats &stats,
         strid = std::to_string(skill_id);
     }
 
-    nl::node src = nl::nx::skill[strid.substr(0, 3) + ".img"]["skill"][strid]
+    nl::node src = nl::nx::skill[strid.substr(0, strid.size() - 4) + ".img"]["skill"][strid]
                                 ["level"][skill_level];
 
     const PassiveBuff *buff = iter->second.get();

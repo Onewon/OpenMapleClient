@@ -1,3 +1,4 @@
+#include "TextEncoding.h"
 //	This file is part of the continued Journey MMORPG client
 //	Copyright (C) 2015-2019  Daniel Allendorf, Ryan Payton
 //
@@ -14,6 +15,7 @@
 //	You should have received a copy of the GNU Affero General Public License
 //	along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "OutPacket.h"
+#include <android/log.h>
 
 #include <chrono>
 
@@ -28,6 +30,8 @@ OutPacket::OutPacket(int16_t opc) : opcode_(opc) {
 }
 
 void OutPacket::dispatch() {
+    if (opcode_ == Opcode::SPEND_SP || opcode_ == Opcode::CHANGE_MAP || opcode_ == Opcode::NPC_TALK_MORE)
+        __android_log_print(ANDROID_LOG_INFO, "PacketSend", "opcode=%d length=%zu", opcode_, bytes_.size());
     PacketProcessor::get().process(bytes_.data(), bytes_.size());
 
     if (Configuration::get().get_show_packets()) {
@@ -92,12 +96,13 @@ void OutPacket::write_point(Point<int16_t> position) {
 }
 
 void OutPacket::write_string(const std::string &str) {
-    auto length = static_cast<int16_t>(str.length());
+    const auto encoded=wire_text::encode(str);
+    auto length = static_cast<int16_t>(encoded.length());
 
     write_short(length);
 
     for (int i = 0; i < length; i++) {
-        write_byte(str[i]);
+        write_byte(encoded[i]);
     }
 }
 

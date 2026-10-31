@@ -47,6 +47,7 @@ Background::Background(const nl::node &src) {
 }
 
 void Background::settype(Type type) {
+    type_ = type;
     int16_t dim_x = animation_.get_dimensions().x();
     int16_t dim_y = animation_.get_dimensions().y();
 
@@ -143,6 +144,15 @@ void Background::draw(double viewx, double viewy, float alpha) const {
 }
 
 void Background::update() {
+    const auto width = Constants::Constants::get().get_viewwidth();
+    const auto height = Constants::Constants::get().get_viewheight();
+    if (width != VWIDTH || height != VHEIGHT) {
+        VWIDTH = width;
+        VHEIGHT = height;
+        WOFFSET = width / 2;
+        HOFFSET = height / 2;
+        settype(type_);
+    }
     move_obj_.move();
     animation_.update();
 }

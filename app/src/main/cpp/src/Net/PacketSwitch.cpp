@@ -14,6 +14,8 @@
 //	You should have received a copy of the GNU Affero General Public License
 //	along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "PacketSwitch.h"
+#include "Handlers/SummonHandlers.h"
+#include <android/log.h>
 
 #include "../Configuration.h"
 #include "Handlers/AttackHandlers.h"
@@ -488,6 +490,16 @@ PacketSwitch::PacketSwitch() {
     emplace<SPAWN_REACTOR, SpawnReactorHandler>();
     emplace<REMOVE_REACTOR, RemoveReactorHandler>();
 
+    emplace<67,AreaHandler<67>>();
+    emplace<273,AreaHandler<273>>();
+    emplace<274,AreaHandler<274>>();
+    emplace<275,AreaHandler<275>>();
+    emplace<276,AreaHandler<276>>();
+    emplace<175,SummonHandler<175>>();
+    emplace<176,SummonHandler<176>>();
+    emplace<177,SummonHandler<177>>();
+    emplace<178,SummonHandler<178>>();
+    emplace<179,SummonHandler<179>>();
     // Attack handlers
     emplace<ATTACKED_CLOSE, CloseAttackHandler>();
     emplace<ATTACKED_RANGED, RangedAttackHandler>();
@@ -496,6 +508,7 @@ PacketSwitch::PacketSwitch() {
     // Player handlers
     emplace<CHANGE_CHANNEL, ChangeChannelHandler>();
     emplace<KEYMAP, KeymapHandler>();
+    emplace<225, ShowComboHandler>();
     emplace<SKILL_MACROS, SkillMacrosHandler>();
     emplace<CHANGE_STATS, ChangeStatsHandler>();
     emplace<GIVE_BUFF, ApplyBuffHandler>();
@@ -529,6 +542,8 @@ PacketSwitch::PacketSwitch() {
 
     // Cash Shop
     emplace<SET_CASH_SHOP, SetCashShopHandler>();
+    emplace<324, CashQueryHandler>();
+    emplace<325, CashOperationHandler>();
 
     // TODO: New handlers, they need coded and moved to a proper file.
     emplace<CHECK_SPW_RESULT, CheckSpwResultHandler>();
@@ -577,6 +592,7 @@ void PacketSwitch::forward(int8_t *bytes, size_t length) const {
 }
 
 void PacketSwitch::warn(std::string_view message, size_t opcode) const {
+    __android_log_print(ANDROID_LOG_WARN, "PacketSwitch", "opcode=%zu error=%.*s", opcode, static_cast<int>(message.size()), message.data());
     std::cout << "Opcode [" << opcode << "] Error: " << message << std::endl;
 }
 }  // namespace ms

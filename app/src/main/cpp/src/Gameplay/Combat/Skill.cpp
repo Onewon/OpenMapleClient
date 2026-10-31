@@ -14,6 +14,8 @@
 //	You should have received a copy of the GNU Affero General Public License
 //	along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "Skill.h"
+#include "../../Character/AdventurerSkills.h"
+#include "CombatMath.h"
 
 #include <nlnx/nx.hpp>
 
@@ -33,7 +35,7 @@ Skill::Skill(int32_t id) : skill_id_(id) {
         strid = std::to_string(skill_id_);
     }
 
-    nl::node src = nl::nx::skill[strid.substr(0, 3) + ".img"]["skill"][strid];
+    nl::node src = nl::nx::skill[strid.substr(0, strid.size() - 4) + ".img"]["skill"][strid];
 
     projectile_ = true;
     over_regular_ = false;
@@ -141,36 +143,92 @@ void Skill::apply_actions(Char &user, Attack::Type type) const {
 
 void Skill::apply_stats(const Char &user, Attack &attack) const {
     attack.skill = skill_id_;
+    const auto src=nl::nx::skill[std::to_string(skill_id_/10000)+".img"]["skill"][std::to_string(skill_id_)];
+    const auto element=src["elemAttr"].get_string();if(!element.empty()){attack.element=element.front();attack.weak_multiplier=1.5;}
+    if(adventurer::attack(skill_id_) || skill_id_==5220011 || adventurer::mortal_blow(skill_id_)) attack.type=static_cast<Attack::Type>(adventurer::attack_mode(skill_id_));
 
     int32_t level = user.get_skilllevel(skill_id_);
     const SkillData::Stats stats = SkillData::get(skill_id_).get_stats(level);
 
+    if(skill_id_==4001344 || skill_id_==4121007) {
+        const auto range=combat_math::throwing_damage(attack.luck,attack.weapon_attack);
+        attack.mindamage=range.first;attack.maxdamage=range.second;
+    }
     if (stats.fixdamage) {
         attack.fixdamage = stats.fixdamage;
         attack.damagetype = Attack::DMG_FIXED;
     } else if (stats.matk) {
-        attack.matk += stats.matk;
+        attack.matk = stats.matk;
         attack.damagetype = Attack::DMG_MAGIC;
+        const auto range=combat_math::magic_damage(attack.magic,attack.intelligence,stats.matk,stats.mastery);
+        attack.mindamage=range.first;attack.maxdamage=range.second;
+        for(int id:{2110001,2210001}) if(user.get_skilllevel(id)>0) {
+            const double multiplier=nl::nx::skill[std::to_string(id/10000)+".img"]["skill"][std::to_string(id)]["level"][user.get_skilllevel(id)]["y"].get_integer(100)/100.0;
+            attack.mindamage*=multiplier;attack.maxdamage*=multiplier;
+        }
     } else {
         attack.mindamage *= stats.damage;
         attack.maxdamage *= stats.damage;
         attack.damagetype = Attack::DMG_WEAPON;
     }
 
+    if((skill_id_==5211004 || skill_id_==5211005) && user.get_skilllevel(5220001)>0) {
+        const int bonus=nl::nx::skill["522.img"]["skill"]["5220001"]["level"][user.get_skilllevel(5220001)]["damage"].get_integer();
+        const double ratio=adventurer::elemental_gun_ratio(stats.damage,bonus);
+        attack.mindamage*=ratio;attack.maxdamage*=ratio;
+    }
+    if(skill_id_==1211002 && user.get_skilllevel(1220010)>0) {
+        const auto advanced=nl::nx::skill["122.img"]["skill"]["1220010"]["level"][user.get_skilllevel(1220010)];
+        const double ratio=advanced["damage"].get_integer(350)/(stats.damage*100.0);
+        attack.mindamage*=ratio;attack.maxdamage*=ratio;
+    }
+    if(skill_id_==4111004) {
+        const int cost=nl::nx::skill["411.img"]["skill"]["4111004"]["level"][level]["moneyCon"].get_integer();
+        attack.mindamage=cost*10;attack.maxdamage=cost*15;attack.critical=0;attack.shadow_ratio=0;
+    }
+    if(skill_id_==3101005) {
+        const double multiplier=nl::nx::skill["310.img"]["skill"]["3101005"]["level"][level]["x"].get_integer(100)/100.0;
+        attack.mindamage*=multiplier;attack.maxdamage*=multiplier;
+    }
+    if(skill_id_==3221007) {
+        // This server rewrites Snipe to 195000..199999. Keep the local preview in that range.
+        attack.mindamage=195000;attack.maxdamage=199999;
+    }
+    if(skill_id_==2301002) {
+        const double percent=nl::nx::skill["230.img"]["skill"]["2301002"]["level"][level]["hp"].get_integer()/100.0;
+        attack.maxdamage=(attack.intelligence*4.8+attack.luck*4.0)*attack.magic/1000.0*percent;
+        attack.mindamage=attack.maxdamage*0.8;attack.damagetype=Attack::DMG_MAGIC;attack.undead_only=true;
+    }
     attack.critical += stats.critical;
     attack.ignoredef += stats.ignoredef;
     attack.mobcount = stats.mobcount;
-    attack.hrange = stats.hrange;
+    attack.hrange = skill_id_==21110006 ? 1.0f : stats.hrange;
 
     switch (attack.type) {
         case Attack::RANGED: attack.hitcount = stats.bulletcount; break;
         default: attack.hitcount = stats.attackcount; break;
     }
 
+    if ((skill_id_==21100004 || skill_id_==21110004) && stats.range.empty()) {
+        const int16_t reach=static_cast<int16_t>(stats.hrange*100);
+        attack.range=Rectangle<int16_t>(-reach,0,-100,50);
+        attack.hrange=1.0f;
+    }
     if (!stats.range.empty()) {
         attack.range = stats.range;
     }
+    if(adventurer::kind(skill_id_)!=adventurer::Kind::Unknown && stats.range.empty() && (attack.type==Attack::RANGED || projectile_)) {
+        const int reach=src["level"][level]["range"].get_integer();
+        if(reach>0) {attack.range={static_cast<int16_t>(-reach),-5,-50,50};attack.hrange=1.0f;}
+    }
 
+
+    if(attack.type==Attack::CLOSE && !projectile_ && stats.range.empty()) {
+        const auto reach=user.get_afterimage().get_range();
+        if(!reach.empty())attack.range=reach;
+    }
+
+    if(attack.shadow_ratio>0 && attack.hitcount<=7) attack.hitcount*=2;
     if (projectile_ && !attack.bullet) {
         switch (skill_id_) {
             case SkillId::THREE_SNAILS:
@@ -239,15 +297,27 @@ SpecialMove::ForbidReason Skill::can_use(int32_t level,
         return FBR_HPCOST;
     }
 
-    if (mp < stats.mpcost) {
-        return FBR_MPCOST;
-    }
+    // Player::can_use checks the effective cost after amplification, Infinity and Concentrate.
 
+    const bool sword=weapon==Weapon::SWORD_1H || weapon==Weapon::SWORD_2H;
+    const bool axe=weapon==Weapon::AXE_1H || weapon==Weapon::AXE_2H;
+    const bool mace=weapon==Weapon::MACE_1H || weapon==Weapon::MACE_2H;
+    switch(skill_id_) {
+        case 1101004:case 1201004:case 1111003:case 1111005:case 1211003:case 1211005:case 1211007:case 1221003:
+            if(!sword)return FBR_WEAPONTYPE;break;
+        case 1101005:case 1111004:case 1111006:if(!axe)return FBR_WEAPONTYPE;break;
+        case 1201005:case 1211004:case 1211006:case 1211008:case 1221004:if(!mace)return FBR_WEAPONTYPE;break;
+        case 1301004:if(weapon!=Weapon::SPEAR)return FBR_WEAPONTYPE;break;
+        case 1301005:if(weapon!=Weapon::POLEARM)return FBR_WEAPONTYPE;break;
+        default:break;
+    }
     Weapon::Type reqweapon = SkillData::get(skill_id_).get_required_weapon();
 
     if (weapon != reqweapon && reqweapon != Weapon::NONE) {
         return FBR_WEAPONTYPE;
     }
+
+    if(adventurer::kind(skill_id_)!=adventurer::Kind::Unknown && !adventurer::uses_ammo(skill_id_))return FBR_NONE;
 
     switch (weapon) {
         case Weapon::BOW:

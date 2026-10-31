@@ -1,3 +1,4 @@
+#include "../FieldSpawn.h"
 //	This file is part of the continued Journey MMORPG client
 //	Copyright (C) 2015-2019  Daniel Allendorf, Ryan Payton
 //
@@ -25,7 +26,7 @@ public:
     void handle(InPacket &recv) const override;
 
 private:
-    void transition(int32_t mapid, uint8_t portalid) const;
+    void transition(int32_t mapid, uint8_t portalid, std::optional<Point<int16_t>> position={}) const;
     void change_map(InPacket &recv, int32_t map_id) const;
     void set_field(InPacket &recv) const;
 };

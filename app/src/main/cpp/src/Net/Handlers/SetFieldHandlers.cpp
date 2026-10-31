@@ -1,3 +1,4 @@
+#include <android/log.h>
 //	This file is part of the continued Journey MMORPG client
 //	Copyright (C) 2015-2019  Daniel Allendorf, Ryan Payton
 //
@@ -32,13 +33,15 @@ auto fn_player_update = []<typename... T>(T && ...args) {
 };
 }  // namespace
 
-void SetFieldHandler::transition(int32_t mapid, uint8_t portalid) const {
+void SetFieldHandler::transition(int32_t mapid, uint8_t portalid, std::optional<Point<int16_t>> position) const {
+    __android_log_print(ANDROID_LOG_INFO,"MapTransition","map=%d portal=%d",mapid,portalid);
     float fadestep = 0.025f;
 
-    Window::get().fadeout(fadestep, [mapid, portalid]() {
+    Window::get().fadeout(fadestep, [mapid, portalid, position]() {
         GraphicsGL::get().clear();
 
         Stage::get().load(mapid, portalid);
+        if(position) Stage::get().place_player(*position);
 
         UI::get().enable();
         Timer::get().start();
@@ -73,7 +76,10 @@ void SetFieldHandler::change_map(InPacket &recv, int32_t) const {
     int32_t mapid = recv.read_int();
     int8_t portalid = recv.read_byte();
 
-    transition(mapid, portalid);
+    const auto spawn=decode_field_spawn(recv);
+    __android_log_print(ANDROID_LOG_INFO,"MapTransition","spawn hp=%u positioned=%d x=%d y=%d",spawn.hp,spawn.position.has_value(),spawn.position?spawn.position->x():0,spawn.position?spawn.position->y():0);
+    auto &stats=Stage::get().get_player().get_stats();stats.set_stat(MapleStat::HP,spawn.hp);stats.set_mapid(mapid);stats.set_portal(portalid);
+    transition(mapid, portalid, spawn.position);
 }
 
 void SetFieldHandler::set_field(InPacket &recv) const {
@@ -82,10 +88,7 @@ void SetFieldHandler::set_field(InPacket &recv) const {
     int32_t cid = recv.read_int();
     auto charselect = UI::get().get_element<UICharSelect>();
 
-    if (!charselect) {
-        return;
-    }
-
+    if (charselect) {
     const CharEntry &playerentry = charselect->get().get_character(cid);
 
     if (playerentry.id != cid) {
@@ -99,6 +102,15 @@ void SetFieldHandler::set_field(InPacket &recv) const {
     Stage::get().load_player(playerentry,
                              Configuration::get().get_worldid(),
                              Configuration::get().get_channelid());
+    } else {
+        // Returning from cash shop: no character-selection UI exists anymore.
+        if (Stage::get().get_player().get_cid()!=cid) return;
+        const auto entry=LoginParser::parse_stats(recv);
+        auto& stats=Stage::get().get_player().get_stats();
+        for(const auto& pair:entry.stats) stats.set_stat(pair.first,pair.second);
+        stats.set_mapid(entry.mapid);
+        stats.set_portal(entry.portal);
+    }
 
     Player &player = Stage::get().get_player();
 

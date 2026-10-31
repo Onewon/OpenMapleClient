@@ -14,6 +14,7 @@
 //	You should have received a copy of the GNU Affero General Public License
 //	along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "MapPortals.h"
+#include <map>
 
 #include <nlnx/nx.hpp>
 
@@ -22,15 +23,20 @@
 
 namespace ms {
 MapPortals::MapPortals(const nl::node &src, int32_t mapid) {
-    for (const auto &sub : src) {
-        int8_t portal_id =
-            string_conversion::or_default<int8_t>(sub.name(), -1);
+    std::map<int16_t,nl::node> ordered;
+    for(const auto &node:src) {const auto id=string_conversion::or_default<int16_t>(node.name(),-1);if(id>=0)ordered.emplace(id,node);}
+    uint16_t next_door=128;
+    for (const auto &[original_id,sub] : ordered) {
+        int16_t portal_id =
+            string_conversion::or_default<int16_t>(sub.name(), -1);
 
-        if (portal_id < 0) {
+        if (portal_id < 0 || portal_id > 255) {
             continue;
         }
 
         Portal::Type type = Portal::typebyid(sub["pt"]);
+        // PortalFactory renumbers type 6 entries from 0x80, independent of their WZ node names.
+        if(type==Portal::WARP) portal_id=next_door++;
         std::string name = sub["pn"];
         std::string target_name = sub["tn"];
         int32_t target_id = sub["tm"];

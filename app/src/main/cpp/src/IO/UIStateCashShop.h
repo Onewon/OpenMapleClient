@@ -30,10 +30,10 @@ public:
     void send_key(KeyType::Id type,
                   int32_t action,
                   bool pressed,
-                  bool escape) override {}
+                  bool escape) override;
     Cursor::State send_cursor(Cursor::State mst, Point<int16_t> pos) override;
     void send_scroll(double yoffset) override {}
-    void send_close() override {}
+    void send_close() override;
 
     void drag_icon(Icon *icon) override {}
     void clear_tooltip(Tooltip::Parent parent) override {}

@@ -14,6 +14,7 @@
 //	You should have received a copy of the GNU Affero General Public License
 //	along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #pragma once
+#include <chrono>
 
 #include "../Template/Interpolated.h"
 #include "../Template/Rectangle.h"
@@ -27,6 +28,10 @@ public:
     void expire(int8_t, const PhysicsObject *);
 
     Rectangle<int16_t> bounds() const;
+    int32_t meso_amount() const {return meso_amount_;}
+    bool can_explode(int32_t owner) const {return is_active() && state_==State::FLOATING && (owner_==owner || owner_==0) && std::chrono::steady_clock::now()>=explosion_until_;}
+    void reserve_explosion() {explosion_until_=std::chrono::steady_clock::now()+std::chrono::seconds(3);}
+
 
 protected:
     Drop(int32_t oid,
@@ -37,6 +42,7 @@ protected:
          int8_t mode,
          bool playerdrop);
 
+    int32_t meso_amount_=0;
     Linear<float> opacity_;
     Linear<float> angle_;
 
@@ -49,6 +55,7 @@ private:
 
     const PhysicsObject *looter_;
     State state_;
+    std::chrono::steady_clock::time_point explosion_until_{};
 
     Point<int16_t> dest_;
     double base_y_;

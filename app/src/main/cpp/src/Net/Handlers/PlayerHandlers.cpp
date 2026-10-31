@@ -1,3 +1,4 @@
+#include "../HomingBuff.h"
 //	This file is part of the continued Journey MMORPG client
 //	Copyright (C) 2015-2019  Daniel Allendorf, Ryan Payton
 //
@@ -14,6 +15,7 @@
 //	You should have received a copy of the GNU Affero General Public License
 //	along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "PlayerHandlers.h"
+#include "../PirateBuff.h"
 
 #include "../../Gameplay/Stage.h"
 #include "../../IO/UI.h"
@@ -185,22 +187,41 @@ void BuffHandler::handle(InPacket &recv) const {
             return;
     }
 
-    for (const auto &[buff_id, mask] : Buffstat::first_codes) {
-        if (firstmask & mask) {
-            handle_buff(recv, buff_id);
+    auto parse_mask=[&](uint64_t bits, const auto &codes) {
+        std::map<uint64_t,Buffstat::Id> ordered;
+        for(const auto &[id,mask]:codes) {
+            if(id==Buffstat::SUMMON || id==Buffstat::SHOWDASH || !mask) continue;
+            if(Buffstat::matches(bits,mask)) ordered.emplace(mask,id);
         }
-    }
-
-    for (const auto &[buff_id, mask] : Buffstat::second_codes) {
-        if (secondmask & mask) {
-            handle_buff(recv, buff_id);
-        }
-    }
+        for(const auto &[mask,id]:ordered) handle_buff(recv,id);
+    };
+    parse_mask(firstmask,Buffstat::first_codes);
+    parse_mask(secondmask,Buffstat::second_codes);
 
     Stage::get().get_player().recalc_stats(false);
 }
 
+void ApplyBuffHandler::handle(InPacket &recv) const {
+    Buff beacon;
+    if(decode_homing_buff(recv,beacon)) {Stage::get().get_player().give_buff(beacon);return;}
+    std::vector<Buff> buffs;
+    if(decode_pirate_buff(recv,buffs)) {
+        for(const auto &buff:buffs) {
+            Stage::get().get_player().give_buff(buff);
+            if(auto list=UI::get().get_element<UIBuffList>()) list->get().add_buff(buff.skillid,buff.duration);
+        }
+        Stage::get().get_player().recalc_stats(false);
+    } else BuffHandler::handle(recv);
+}
 void ApplyBuffHandler::handle_buff(InPacket &recv, Buffstat::Id bs) const {
+    if(bs==Buffstat::PUPPET || bs==Buffstat::ZOMBIFY) {
+        auto probe=recv;probe.skip(2);const auto source=probe.read_int();
+        bs=(source&65535)<256 ? Buffstat::ZOMBIFY:Buffstat::PUPPET;
+    }
+    if(bs==Buffstat::MONSTER_RIDING || bs==Buffstat::HOMING_BEACON) {
+        const int16_t value=recv.read_short();const int32_t source=recv.read_int();const int32_t skill=recv.read_int();
+        Stage::get().get_player().give_buff({bs,static_cast<int16_t>(std::max<int32_t>(1,value)),skill,0});return;
+    }
     if (Buffstat::is_disease(bs)) {
         int16_t value = recv.read_short();
         int16_t skillid = recv.read_short();
@@ -217,7 +238,8 @@ void ApplyBuffHandler::handle_buff(InPacket &recv, Buffstat::Id bs) const {
         int32_t skillid = recv.read_int();
         int32_t duration = recv.read_int();
 
-        Stage::get().get_player().give_buff({ bs, value, skillid, duration });
+        Stage::get().get_player().give_buff({ bs, value, bs==Buffstat::ENERGY_CHARGE ? 5110001:skillid, duration });
+        if(bs==Buffstat::ENERGY_CHARGE) return;
 
         if (auto bufflist = UI::get().get_element<UIBuffList>()) {
             bufflist->get().add_buff(skillid, duration);
@@ -227,6 +249,7 @@ void ApplyBuffHandler::handle_buff(InPacket &recv, Buffstat::Id bs) const {
 
 void CancelBuffHandler::handle_buff(InPacket &, Buffstat::Id bs) const {
     Stage::get().get_player().cancel_buff(bs);
+    if(bs==Buffstat::PUPPET || bs==Buffstat::ZOMBIFY) {Stage::get().get_player().cancel_buff(Buffstat::PUPPET);Stage::get().get_player().cancel_buff(Buffstat::ZOMBIFY);}
 }
 
 void RecalculateStatsHandler::handle(InPacket &) const {
@@ -234,8 +257,9 @@ void RecalculateStatsHandler::handle(InPacket &) const {
 }
 
 void UpdateSkillHandler::handle(InPacket &recv) const {
-    recv.skip(3);
-
+    recv.skip(1);
+    const auto count=recv.read_ushort();
+    for(unsigned i=0;i<count;++i) {
     int32_t skillid = recv.read_int();
     int32_t level = recv.read_int();
     int32_t masterlevel = recv.read_int();
@@ -247,6 +271,7 @@ void UpdateSkillHandler::handle(InPacket &recv) const {
         skillbook->get().update_skills(skillid);
     }
 
+    }
     UI::get().enable();
 }
 
@@ -311,6 +336,10 @@ void AddCooldownHandler::handle(InPacket &recv) const {
     int16_t cooltime = recv.read_short();
 
     Stage::get().get_player().add_cooldown(skill_id, cooltime);
+}
+
+void ShowComboHandler::handle(InPacket &recv) const {
+    Stage::get().get_combat().set_combo(recv.read_int());
 }
 
 void KeymapHandler::handle(InPacket &recv) const {
